@@ -1,20 +1,34 @@
 package kotlinx.io.tests
 
+import kotlinx.io.bits.*
 import kotlinx.io.core.*
+import kotlinx.io.pool.*
 import kotlin.test.*
 
-class IoBufferTest {
+class BufferTest {
+    private val pool = VerifyingObjectPool<Buffer>(object : DefaultPool<Buffer>(10) {
+        override fun produceInstance(): Buffer {
+            return Buffer(DefaultAllocator.alloc(4096))
+        }
+
+        override fun disposeInstance(instance: Buffer) {
+            DefaultAllocator.free(instance.memory)
+        }
+    })
+
+    private val Buffer.Companion.Pool get() = pool
+
     @Test
     fun smokeTest() {
-        assertEquals(0, IoBuffer.Empty.capacity)
-        assertEquals(0, IoBuffer.Empty.readRemaining)
-        assertEquals(0, IoBuffer.Empty.writeRemaining)
-        assertEquals(0, IoBuffer.Empty.startGap)
-        assertEquals(0, IoBuffer.Empty.endGap)
-        assertFalse(IoBuffer.Empty.canRead())
-        assertFalse(IoBuffer.Empty.canWrite())
+        assertEquals(0, Buffer.Empty.capacity)
+        assertEquals(0, Buffer.Empty.readRemaining)
+        assertEquals(0, Buffer.Empty.writeRemaining)
+        assertEquals(0, Buffer.Empty.startGap)
+        assertEquals(0, Buffer.Empty.endGap)
+        assertFalse(Buffer.Empty.canRead())
+        assertFalse(Buffer.Empty.canWrite())
 
-        val buffer = IoBuffer.Pool.borrow()
+        val buffer = Buffer.Pool.borrow()
         try {
             assertNotEquals(0, buffer.writeRemaining)
             assertEquals(buffer.capacity, buffer.writeRemaining)
@@ -24,13 +38,13 @@ class IoBufferTest {
             assertEquals(0x11223344, buffer.readInt())
             assertEquals(0, buffer.readRemaining)
         } finally {
-            buffer.release(IoBuffer.Pool)
+            buffer.release(Buffer.Pool)
         }
     }
 
     @Test
     fun testResetForWrite() {
-        val buffer = IoBuffer.Pool.borrow()
+        val buffer = Buffer.Pool.borrow()
         try {
             val capacity = buffer.capacity
 
@@ -42,20 +56,20 @@ class IoBufferTest {
             assertEquals(capacity, buffer.writeRemaining)
             assertEquals(0, buffer.readRemaining)
         } finally {
-            buffer.release(IoBuffer.Pool)
+            buffer.release(Buffer.Pool)
         }
     }
 
     @Test
     fun testWriteWhenImpossible() {
-        val buffer = IoBuffer.Pool.borrow()
+        val buffer = Buffer.Pool.borrow()
         try {
             buffer.resetForRead()
             assertFails {
                 buffer.writeInt(1)
             }
         } finally {
-            buffer.release(IoBuffer.Pool)
+            buffer.release(Buffer.Pool)
         }
     }
 }
