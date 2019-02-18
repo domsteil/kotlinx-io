@@ -37,7 +37,7 @@ inline fun <R> withBuffer(pool: ObjectPool<Buffer>, block: Buffer.() -> R): R {
  * it outside of the [block] function but it is important to release the duplicate properly once not needed anymore
  * otherwise memory leak may occur on some platforms.
  */
-internal inline fun <R> withBuffer(pool: ObjectPool<ChunkBuffer>, block: ChunkBuffer.() -> R): R {
+internal inline fun <R> withChunkBuffer(pool: ObjectPool<ChunkBuffer>, block: ChunkBuffer.() -> R): R {
     val instance = pool.borrow()
     return try {
         block(instance)
