@@ -192,9 +192,22 @@ open class Buffer(val memory: Memory) {
     /**
      * Forget start/end gap reservations.
      */
-    fun resetGaps() {
-        startGap = 0
+    internal fun releaseGaps() {
+        releaseStartGap(0)
+        releaseEndGap()
+    }
+
+    internal fun releaseEndGap() {
         limit = capacity
+    }
+
+    internal fun releaseStartGap(newReadPosition: Int) {
+        require(newReadPosition >= 0)
+
+        readPosition = newReadPosition
+        if (startGap > newReadPosition) {
+            startGap = newReadPosition
+        }
     }
 
     protected open fun duplicateTo(copy: Buffer) {
@@ -230,6 +243,24 @@ open class Buffer(val memory: Memory) {
         if (readPosition == writePosition) return -1
         this.readPosition = readPosition + 1
         return memory[readPosition].toInt() and 0xff
+    }
+
+    fun readByte(): Byte {
+        val readPosition = readPosition
+        if (readPosition == writePosition) {
+            throw EOFException("No readable bytes available.")
+        }
+        this.readPosition = readPosition + 1
+        return memory[readPosition]
+    }
+
+    fun writeByte(value: Byte) {
+        val writePosition = writePosition
+        if (writePosition == limit) {
+            throw EOFException("No free space in the buffer to write a byte")
+        }
+        memory[writePosition] = value
+        this.writePosition = writePosition + 1
     }
 
     companion object {

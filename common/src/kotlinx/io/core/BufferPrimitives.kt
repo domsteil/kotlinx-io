@@ -3,68 +3,363 @@ package kotlinx.io.core
 import kotlinx.io.bits.*
 import kotlin.contracts.*
 
+/**
+ * Read an unsigned byte or fail if no bytes available for reading.
+ */
+fun Buffer.readUByte(): UByte = readByte().toUByte()
+
+/**
+ * Write an unsigned byte or fail if not enough space available for writing.
+ */
+fun Buffer.writeUByte(value: UByte) {
+    writeByte(value.toByte())
+}
+
+/**
+ * Read a short integer or fail if no bytes available for reading.
+ * The numeric value is decoded in the network order (Big Endian).
+ */
 fun Buffer.readShort(): Short = readExact(2, "short integer") { memory, offset ->
     memory.loadShortAt(offset)
 }
 
+/**
+ * Read an unsigned short integer or fail if not enough bytes available for reading.
+ * The numeric value is decoded in the network order (Big Endian).
+ */
 fun Buffer.readUShort(): UShort = readExact(2, "short unsigned integer") { memory, offset ->
     memory.loadUShortAt(offset)
 }
 
+/**
+ * Read an integer or fail if not enough bytes available for reading.
+ * The numeric value is decoded in the network order (Big Endian).
+ */
 fun Buffer.readInt(): Int = readExact(4, "regular integer") { memory, offset ->
     memory.loadIntAt(offset)
 }
 
+/**
+ * Read an unsigned integer or fail if not enough bytes available for reading.
+ * The numeric value is decoded in the network order (Big Endian).
+ */
 fun Buffer.readUInt(): UInt = readExact(4, "regular unsigned integer") { memory, offset ->
     memory.loadUIntAt(offset)
 }
 
+/**
+ * Read a long integer or fail if not enough bytes available for reading.
+ * The numeric value is decoded in the network order (Big Endian).
+ */
 fun Buffer.readLong(): Long = readExact(8, "long integer") { memory, offset ->
     memory.loadLongAt(offset)
 }
 
+/**
+ * Read an unsigned long integer or fail if not enough bytes available for reading.
+ * The numeric value is decoded in the network order (Big Endian).
+ */
 fun Buffer.readULong(): ULong = readExact(8, "long unsigned integer") { memory, offset ->
     memory.loadULongAt(offset)
 }
 
+/**
+ * Read a floating point number or fail if not enough bytes available for reading.
+ * The numeric value is decoded in the network order (Big Endian).
+ */
 fun Buffer.readFloat(): Float = readExact(4, "floating point number") { memory, offset ->
     memory.loadFloatAt(offset)
 }
 
+/**
+ * Read a floating point number or fail if not enough bytes available for reading.
+ * The numeric value is decoded in the network order (Big Endian).
+ */
 fun Buffer.readDouble(): Double = readExact(8, "long floating point number") { memory, offset ->
     memory.loadDoubleAt(offset)
 }
 
+/**
+ * Write a short integer or fail if not enough space available for writing.
+ * The numeric value is encoded in the network order (Big Endian).
+ */
 fun Buffer.writeShort(value: Short): Unit = writeExact(2, "short integer") { memory, offset ->
     memory.storeShortAt(offset, value)
 }
 
+/**
+ * Write an unsigned short integer or fail if not enough space available for writing.
+ * The numeric value is encoded in the network order (Big Endian).
+ */
 fun Buffer.writeUShort(value: UShort): Unit = writeExact(2, "short unsigned integer") { memory, offset ->
     memory.storeUShortAt(offset, value)
 }
 
+/**
+ * Write an integer or fail if not enough space available for writing.
+ * The numeric value is encoded in the network order (Big Endian).
+ */
 fun Buffer.writeInt(value: Int): Unit = writeExact(4, "regular integer") { memory, offset ->
     memory.storeIntAt(offset, value)
 }
 
+/**
+ * Write an unsigned integer or fail if not enough space available for writing.
+ * The numeric value is encoded in the network order (Big Endian).
+ */
 fun Buffer.writeUInt(value: UInt): Unit = writeExact(4, "regular unsigned integer") { memory, offset ->
     memory.storeUIntAt(offset, value)
 }
 
+/**
+ * Write a long integer or fail if not enough space available for writing.
+ * The numeric value is encoded in the network order (Big Endian).
+ */
 fun Buffer.writeLong(value: Long): Unit = writeExact(8, "long integer") { memory, offset ->
     memory.storeLongAt(offset, value)
 }
 
+/**
+ * Write an unsigned long integer or fail if not enough space available for writing.
+ * The numeric value is encoded in the network order (Big Endian).
+ */
 fun Buffer.writeULong(value: ULong): Unit = writeExact(8, "long unsigned integer") { memory, offset ->
     memory.storeULongAt(offset, value)
 }
 
+/**
+ * Write a floating point number or fail if not enough space available for writing.
+ * The numeric value is encoded in the network order (Big Endian).
+ */
 fun Buffer.writeFloat(value: Float): Unit = writeExact(4, "floating point number") { memory, offset ->
     memory.storeFloatAt(offset, value)
 }
 
+/**
+ * Write a floating point number or fail if not enough space available for writing.
+ * The numeric value is encoded in the network order (Big Endian).
+ */
 fun Buffer.writeDouble(value: Double): Unit = writeExact(8, "long floating point number") { memory, offset ->
     memory.storeDoubleAt(offset, value)
+}
+
+/**
+ * Read from this buffer to the [destination] array to [offset] and [length] bytes.
+ */
+fun Buffer.readFully(destination: ByteArray, offset: Int = 0, length: Int = destination.size - offset) {
+    readExact(length, "byte array") { memory, srcOffset ->
+        memory.loadByteArray(srcOffset, destination, offset, length)
+    }
+}
+
+/**
+ * Read from this buffer to the [destination] array to [offset] and [length] bytes.
+ */
+fun Buffer.readFully(destination: UByteArray, offset: Int = 0, length: Int = destination.size - offset) {
+    readFully(destination.asByteArray(), offset, length)
+}
+
+/**
+ * Write the whole [source] array range staring at [offset] and having the specified bytes [length].
+ */
+fun Buffer.writeFully(source: ByteArray, offset: Int = 0, length: Int = source.size - offset) {
+    writeExact(length, "byte array") { memory, dstOffset ->
+        memory.storeByteArray(dstOffset, source, offset, length)
+    }
+}
+
+/**
+ * Write the whole [source] array range staring at [offset] and having the specified bytes [length].
+ */
+fun Buffer.writeFully(source: UByteArray, offset: Int = 0, length: Int = source.size - offset) {
+    writeFully(source.asByteArray(), offset, length)
+}
+
+/**
+ * Read from this buffer to the [destination] array to [offset] and [length] bytes.
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.readFully(destination: ShortArray, offset: Int = 0, length: Int = destination.size - offset) {
+    readExact(length * 2, "short integers array") { memory, srcOffset ->
+        memory.loadShortArray(srcOffset, destination, offset, length)
+    }
+}
+
+/**
+ * Read from this buffer to the [destination] array to [offset] and [length] bytes.
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.readFully(destination: UShortArray, offset: Int = 0, length: Int = destination.size - offset) {
+    readFully(destination.asShortArray(), offset, length)
+}
+
+/**
+ * Write the whole [source] array range staring at [offset] and having the specified items [length].
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.writeFully(source: ShortArray, offset: Int = 0, length: Int = source.size - offset) {
+    writeExact(length * 2, "short integers array") { memory, dstOffset ->
+        memory.storeShortArray(dstOffset, source, offset, length)
+    }
+}
+
+/**
+ * Write the whole [source] array range staring at [offset] and having the specified items [length].
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.writeFully(source: UShortArray, offset: Int = 0, length: Int = source.size - offset) {
+    writeFully(source.asShortArray(), offset, length)
+}
+
+/**
+ * Read from this buffer to the [destination] array to [offset] and [length] bytes.
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.readFully(destination: IntArray, offset: Int = 0, length: Int = destination.size - offset) {
+    readExact(length * 4, "integers array") { memory, srcOffset ->
+        memory.loadIntArray(srcOffset, destination, offset, length)
+    }
+}
+
+/**
+ * Read from this buffer to the [destination] array to [offset] and [length] bytes.
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.readFully(destination: UIntArray, offset: Int = 0, length: Int = destination.size - offset) {
+    readFully(destination.asIntArray(), offset, length)
+}
+
+/**
+ * Write the whole [source] array range staring at [offset] and having the specified items [length].
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.writeFully(source: IntArray, offset: Int = 0, length: Int = source.size - offset) {
+    writeExact(length * 4, "integers array") { memory, dstOffset ->
+        memory.storeIntArray(dstOffset, source, offset, length)
+    }
+}
+
+/**
+ * Write the whole [source] array range staring at [offset] and having the specified items [length].
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.writeFully(source: UIntArray, offset: Int = 0, length: Int = source.size - offset) {
+    writeFully(source.asIntArray(), offset, length)
+}
+
+/**
+ * Read from this buffer to the [destination] array to [offset] and [length] bytes.
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.readFully(destination: LongArray, offset: Int = 0, length: Int = destination.size - offset) {
+    readExact(length * 8, "long integers array") { memory, srcOffset ->
+        memory.loadLongArray(srcOffset, destination, offset, length)
+    }
+}
+
+/**
+ * Read from this buffer to the [destination] array to [offset] and [length] bytes.
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.readFully(destination: ULongArray, offset: Int = 0, length: Int = destination.size - offset) {
+    readFully(destination.asLongArray(), offset, length)
+}
+
+/**
+ * Write the whole [source] array range staring at [offset] and having the specified items [length].
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.writeFully(source: LongArray, offset: Int = 0, length: Int = source.size - offset) {
+    writeExact(length * 8, "long integers array") { memory, dstOffset ->
+        memory.storeLongArray(dstOffset, source, offset, length)
+    }
+}
+
+/**
+ * Write the whole [source] array range staring at [offset] and having the specified items [length].
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.writeFully(source: ULongArray, offset: Int = 0, length: Int = source.size - offset) {
+    writeFully(source.asLongArray(), offset, length)
+}
+
+/**
+ * Read from this buffer to the [destination] array to [offset] and [length] bytes.
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.readFully(destination: FloatArray, offset: Int = 0, length: Int = destination.size - offset) {
+    readExact(length * 4, "floating point numbers array") { memory, srcOffset ->
+        memory.loadFloatArray(srcOffset, destination, offset, length)
+    }
+}
+
+/**
+ * Write the whole [source] array range staring at [offset] and having the specified items [length].
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.writeFully(source: FloatArray, offset: Int = 0, length: Int = source.size - offset) {
+    writeExact(length * 4, "floating point numbers array") { memory, dstOffset ->
+        memory.storeFloatArray(dstOffset, source, offset, length)
+    }
+}
+
+/**
+ * Read from this buffer to the [destination] array to [offset] and [length] bytes.
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.readFully(destination: DoubleArray, offset: Int = 0, length: Int = destination.size - offset) {
+    readExact(length * 8, "floating point numbers array") { memory, srcOffset ->
+        memory.loadDoubleArray(srcOffset, destination, offset, length)
+    }
+}
+
+/**
+ * Write the whole [source] array range staring at [offset] and having the specified items [length].
+ * Numeric values are interpreted in the network byte order (Big Endian).
+ */
+fun Buffer.writeFully(source: DoubleArray, offset: Int = 0, length: Int = source.size - offset) {
+    writeExact(length * 8, "floating point numbers array") { memory, dstOffset ->
+        memory.storeDoubleArray(dstOffset, source, offset, length)
+    }
+}
+
+/**
+ * Read at most [length] bytes from this buffer to the [dst] buffer.
+ */
+fun Buffer.readFully(dst: Buffer, length: Int = dst.writeRemaining) {
+    require(length >= 0)
+    require(length <= dst.writeRemaining)
+
+    readExact(length, "buffer content") { memory, offset ->
+        memory.copyTo(dst.memory, offset, length, dst.writePosition)
+        dst.commitWritten(length)
+    }
+}
+
+/**
+ * Write all readable bytes from [src] to this buffer. Fails if not enough space available to write all bytes.
+ */
+fun Buffer.writeFully(src: Buffer) {
+    val length = src.readRemaining
+
+    writeExact(length, "buffer readable content") { memory, offset ->
+        src.memory.copyTo(memory, src.readPosition, length, offset)
+        src.discard(length)
+    }
+}
+
+/**
+ * Write at most [length] readable bytes from [src] to this buffer.
+ * Fails if not enough space available to write all bytes.
+ */
+fun Buffer.writeFully(src: Buffer, length: Int) {
+    require(length >= 0)
+    require(length <= src.readRemaining)
+
+    writeExact(length, "buffer readable content") { memory, offset ->
+        src.memory.copyTo(memory, src.readPosition, length, offset)
+        src.discard(length)
+    }
 }
 
 @PublishedApi
@@ -93,7 +388,7 @@ internal inline fun Buffer.writeExact(size: Int, name: String, block: (memory: M
 
     write { memory, start, endExclusive ->
         kotlinx.io.core.internal.require(endExclusive - start >= size) {
-            throw EOFException("Not enough free space to write a $name of size $size.")
+            throw EOFException("Not enough free space to write a $name of size $size. Available space $writeRemaining.")
         }
         block(memory, start)
         size
