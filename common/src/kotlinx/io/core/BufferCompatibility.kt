@@ -66,3 +66,14 @@ fun Buffer.append(csq: CharSequence?, start: Int, end: Int): Appendable = TODO()
 
 @Deprecated("Not supported anymore", level = DeprecationLevel.ERROR)
 fun Buffer.append(csq: CharArray, start: Int, end: Int): Appendable = TODO()
+
+@Deprecated(
+    "This is no longer supported. All operations are big endian by default. Use readXXXLittleEndian " +
+        "to read primitives in little endian",
+    level = DeprecationLevel.ERROR
+)
+var Buffer.byteOrder: ByteOrder
+    get() = ByteOrder.BIG_ENDIAN
+    set(newOrder) {
+        if (newOrder != ByteOrder.BIG_ENDIAN) throw UnsupportedOperationException("Only BIG_ENDIAN is supported")
+    }
