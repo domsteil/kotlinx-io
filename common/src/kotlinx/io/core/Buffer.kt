@@ -171,18 +171,19 @@ open class Buffer(val memory: Memory) {
     }
 
     /**
-     * Marks all capacity writable except start and end gaps reserved before.
+     * Marks all capacity writable except the start gap reserved before. The end gap reservation is discarded.
      */
     fun resetForWrite() {
-        readPosition = startGap
-        writePosition = startGap
+        resetForWrite(capacity - startGap)
     }
 
     /**
      * Marks up to [limit] bytes of the buffer available for write and no bytes for read.
-     * It does respect [startGap] already reserved.
+     * It does respect [startGap] already reserved. All extra bytes after the specified [limit]
+     * are considered as [endGap].
      */
     fun resetForWrite(limit: Int) {
+        val startGap = startGap
         readPosition = startGap
         writePosition = startGap
         this.limit = limit
@@ -196,14 +197,18 @@ open class Buffer(val memory: Memory) {
         limit = capacity
     }
 
-    /**
-     * Create a new [Buffer] instance pointing to the same memory and having the same positions.
-     */
-    fun duplicate(): Buffer = Buffer(memory).also { copy ->
+    protected open fun duplicateTo(copy: Buffer) {
         copy.limit = limit
         copy.startGap = startGap
         copy.readPosition = readPosition
         copy.writePosition = writePosition
+    }
+
+    /**
+     * Create a new [Buffer] instance pointing to the same memory and having the same positions.
+     */
+    open fun duplicate(): Buffer = Buffer(memory).apply {
+        duplicateTo(this)
     }
 
     /**
