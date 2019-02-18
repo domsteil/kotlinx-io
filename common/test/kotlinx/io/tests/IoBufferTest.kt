@@ -1,16 +1,11 @@
 package kotlinx.io.tests
 
-import kotlinx.io.bits.loadIntAt
-import kotlinx.io.bits.storeIntAt
-import kotlinx.io.core.Buffer
-import kotlinx.io.core.canRead
-import kotlinx.io.core.canWrite
-import kotlinx.io.core.internal.ChunkBuffer
-import kotlinx.io.core.write
+import kotlinx.io.core.*
+import kotlinx.io.core.internal.*
 import kotlin.test.*
 
 class BufferTest {
-    private val pool = VerifyingObjectPool<ChunkBuffer>(ChunkBuffer.Pool)
+    private val pool = VerifyingObjectPool(ChunkBuffer.Pool)
     private val Buffer.Companion.Pool get() = pool
 
     @Test
@@ -65,19 +60,6 @@ class BufferTest {
             }
         } finally {
             buffer.release(Buffer.Pool)
-        }
-    }
-
-    private inline fun Buffer.readInt(): Int {
-        val value = memory.loadIntAt(readPosition)
-        discard(4)
-        return value
-    }
-
-    private inline fun Buffer.writeInt(value: Int) {
-        write { memory, start, endExclusive ->
-            memory.storeIntAt(start, value)
-            4
         }
     }
 }
