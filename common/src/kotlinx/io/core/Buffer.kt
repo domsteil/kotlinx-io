@@ -54,7 +54,7 @@ open class Buffer(val memory: Memory) {
     inline val endGap: Int get() = capacity - limit
 
     /**
-     * Buffer's capacity (including reserved [startGap] and [endGap]
+     * Buffer's capacity (including reserved [startGap] and [endGap]. Value for released buffer is unspecified.
      */
     val capacity: Int = memory.size32
 

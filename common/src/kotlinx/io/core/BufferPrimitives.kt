@@ -2,6 +2,7 @@ package kotlinx.io.core
 
 import kotlinx.io.bits.*
 import kotlin.contracts.*
+import kotlinx.io.core.internal.require
 
 /**
  * Read an unsigned byte or fail if no bytes available for reading.
@@ -160,6 +161,36 @@ fun Buffer.readFully(destination: UByteArray, offset: Int = 0, length: Int = des
 }
 
 /**
+ * Read available for read bytes to the [destination] array range starting at array [offset] and [length] bytes.
+ * If less than [length] bytes available then less bytes will be copied and the corresponding number
+ * will be returned as result.
+ * @return number of bytes copied to the [destination] or `-1` if the buffer is empty
+ */
+fun Buffer.readAvailable(destination: ByteArray, offset: Int = 0, length: Int = destination.size - offset): Int {
+    require(offset >= 0) { "offset shouldn't be negative: $offset" }
+    require(length >= 0) { "length shouldn't be negative: $length" }
+    require(offset + length <= destination.size) {
+        "offset + length should be less than the destination size: $offset" +
+            " + $length > ${destination.size}"
+    }
+
+    if (!canRead()) return -1
+    val toBeRead = minOf(length, readRemaining)
+    readFully(destination, offset, toBeRead)
+    return toBeRead
+}
+
+/**
+ * Read available for read bytes to the [destination] array range starting at array [offset] and [length] bytes.
+ * If less than [length] bytes available then less bytes will be copied and the corresponding number
+ * will be returned as result.
+ * @return number of bytes copied to the [destination] or `-1` if the buffer is empty
+ */
+fun Buffer.readAvailable(destination: UByteArray, offset: Int = 0, length: Int = destination.size - offset): Int {
+    return readAvailable(destination.asByteArray(), offset, length)
+}
+
+/**
  * Write the whole [source] array range staring at [offset] and having the specified bytes [length].
  */
 fun Buffer.writeFully(source: ByteArray, offset: Int = 0, length: Int = source.size - offset) {
@@ -191,6 +222,40 @@ fun Buffer.readFully(destination: ShortArray, offset: Int = 0, length: Int = des
  */
 fun Buffer.readFully(destination: UShortArray, offset: Int = 0, length: Int = destination.size - offset) {
     readFully(destination.asShortArray(), offset, length)
+}
+
+/**
+ * Read available for read bytes to the [destination] array range starting at array [offset] and [length] elements.
+ * If less than [length] elements available then less elements will be copied and the corresponding number
+ * will be returned as result (possibly zero).
+ *
+ * @return number of elements copied to the [destination] or `-1` if the buffer is empty,
+ *  `0` - not enough bytes for at least an element
+ */
+fun Buffer.readAvailable(destination: ShortArray, offset: Int = 0, length: Int = destination.size - offset): Int {
+    require(offset >= 0) { "offset shouldn't be negative: $offset" }
+    require(length >= 0) { "length shouldn't be negative: $length" }
+    require(offset + length <= destination.size) {
+        "offset + length should be less than the destination size: $offset" +
+            " + $length > ${destination.size}"
+    }
+
+    if (!canRead()) return -1
+    val toBeRead = minOf(length / 2, readRemaining)
+    readFully(destination, offset, toBeRead)
+    return toBeRead
+}
+
+/**
+ * Read available for read bytes to the [destination] array range starting at array [offset] and [length] elements.
+ * If less than [length] elements available then less elements will be copied and the corresponding number
+ * will be returned as result (possibly zero).
+ *
+ * @return number of elements copied to the [destination] or `-1` if the buffer is empty,
+ *  `0` - not enough bytes for at least an element
+ */
+fun Buffer.readAvailable(destination: UShortArray, offset: Int = 0, length: Int = destination.size - offset): Int {
+    return readAvailable(destination.asShortArray(), offset, length)
 }
 
 /**
@@ -230,6 +295,40 @@ fun Buffer.readFully(destination: UIntArray, offset: Int = 0, length: Int = dest
 }
 
 /**
+ * Read available for read bytes to the [destination] array range starting at array [offset] and [length] elements.
+ * If less than [length] elements available then less elements will be copied and the corresponding number
+ * will be returned as result (possibly zero).
+ *
+ * @return number of elements copied to the [destination] or `-1` if the buffer is empty,
+ *  `0` - not enough bytes for at least an element
+ */
+fun Buffer.readAvailable(destination: IntArray, offset: Int = 0, length: Int = destination.size - offset): Int {
+    require(offset >= 0) { "offset shouldn't be negative: $offset" }
+    require(length >= 0) { "length shouldn't be negative: $length" }
+    require(offset + length <= destination.size) {
+        "offset + length should be less than the destination size: $offset" +
+            " + $length > ${destination.size}"
+    }
+
+    if (!canRead()) return -1
+    val toBeRead = minOf(length / 4, readRemaining)
+    readFully(destination, offset, toBeRead)
+    return toBeRead
+}
+
+/**
+ * Read available for read bytes to the [destination] array range starting at array [offset] and [length] elements.
+ * If less than [length] elements available then less elements will be copied and the corresponding number
+ * will be returned as result (possibly zero).
+ *
+ * @return number of elements copied to the [destination] or `-1` if the buffer is empty,
+ *  `0` - not enough bytes for at least an element
+ */
+fun Buffer.readAvailable(destination: UIntArray, offset: Int = 0, length: Int = destination.size - offset): Int {
+    return readAvailable(destination.asIntArray(), offset, length)
+}
+
+/**
  * Write the whole [source] array range staring at [offset] and having the specified items [length].
  * Numeric values are interpreted in the network byte order (Big Endian).
  */
@@ -266,6 +365,40 @@ fun Buffer.readFully(destination: ULongArray, offset: Int = 0, length: Int = des
 }
 
 /**
+ * Read available for read bytes to the [destination] array range starting at array [offset] and [length] elements.
+ * If less than [length] elements available then less elements will be copied and the corresponding number
+ * will be returned as result (possibly zero).
+ *
+ * @return number of elements copied to the [destination] or `-1` if the buffer is empty,
+ *  `0` - not enough bytes for at least an element
+ */
+fun Buffer.readAvailable(destination: LongArray, offset: Int = 0, length: Int = destination.size - offset): Int {
+    require(offset >= 0) { "offset shouldn't be negative: $offset" }
+    require(length >= 0) { "length shouldn't be negative: $length" }
+    require(offset + length <= destination.size) {
+        "offset + length should be less than the destination size: $offset" +
+            " + $length > ${destination.size}"
+    }
+
+    if (!canRead()) return -1
+    val toBeRead = minOf(length / 8, readRemaining)
+    readFully(destination, offset, toBeRead)
+    return toBeRead
+}
+
+/**
+ * Read available for read bytes to the [destination] array range starting at array [offset] and [length] elements.
+ * If less than [length] elements available then less elements will be copied and the corresponding number
+ * will be returned as result (possibly zero).
+ *
+ * @return number of elements copied to the [destination] or `-1` if the buffer is empty,
+ *  `0` - not enough bytes for at least an element
+ */
+fun Buffer.readAvailable(destination: ULongArray, offset: Int = 0, length: Int = destination.size - offset): Int {
+    return readAvailable(destination.asLongArray(), offset, length)
+}
+
+/**
  * Write the whole [source] array range staring at [offset] and having the specified items [length].
  * Numeric values are interpreted in the network byte order (Big Endian).
  */
@@ -294,6 +427,28 @@ fun Buffer.readFully(destination: FloatArray, offset: Int = 0, length: Int = des
 }
 
 /**
+ * Read available for read bytes to the [destination] array range starting at array [offset] and [length] elements.
+ * If less than [length] elements available then less elements will be copied and the corresponding number
+ * will be returned as result (possibly zero).
+ *
+ * @return number of elements copied to the [destination] or `-1` if the buffer is empty,
+ *  `0` - not enough bytes for at least an element
+ */
+fun Buffer.readAvailable(destination: FloatArray, offset: Int = 0, length: Int = destination.size - offset): Int {
+    require(offset >= 0) { "offset shouldn't be negative: $offset" }
+    require(length >= 0) { "length shouldn't be negative: $length" }
+    require(offset + length <= destination.size) {
+        "offset + length should be less than the destination size: $offset" +
+            " + $length > ${destination.size}"
+    }
+
+    if (!canRead()) return -1
+    val toBeRead = minOf(length / 4, readRemaining)
+    readFully(destination, offset, toBeRead)
+    return toBeRead
+}
+
+/**
  * Write the whole [source] array range staring at [offset] and having the specified items [length].
  * Numeric values are interpreted in the network byte order (Big Endian).
  */
@@ -314,6 +469,28 @@ fun Buffer.readFully(destination: DoubleArray, offset: Int = 0, length: Int = de
 }
 
 /**
+ * Read available for read bytes to the [destination] array range starting at array [offset] and [length] elements.
+ * If less than [length] elements available then less elements will be copied and the corresponding number
+ * will be returned as result (possibly zero).
+ *
+ * @return number of elements copied to the [destination] or `-1` if the buffer is empty,
+ *  `0` - not enough bytes for at least an element
+ */
+fun Buffer.readAvailable(destination: DoubleArray, offset: Int = 0, length: Int = destination.size - offset): Int {
+    require(offset >= 0) { "offset shouldn't be negative: $offset" }
+    require(length >= 0) { "length shouldn't be negative: $length" }
+    require(offset + length <= destination.size) {
+        "offset + length should be less than the destination size: $offset" +
+            " + $length > ${destination.size}"
+    }
+
+    if (!canRead()) return -1
+    val toBeRead = minOf(length / 8, readRemaining)
+    readFully(destination, offset, toBeRead)
+    return toBeRead
+}
+
+/**
  * Write the whole [source] array range staring at [offset] and having the specified items [length].
  * Numeric values are interpreted in the network byte order (Big Endian).
  */
@@ -325,8 +502,9 @@ fun Buffer.writeFully(source: DoubleArray, offset: Int = 0, length: Int = source
 
 /**
  * Read at most [length] bytes from this buffer to the [dst] buffer.
+ * @return number of bytes copied
  */
-fun Buffer.readFully(dst: Buffer, length: Int = dst.writeRemaining) {
+fun Buffer.readFully(dst: Buffer, length: Int = dst.writeRemaining): Int {
     require(length >= 0)
     require(length <= dst.writeRemaining)
 
@@ -334,6 +512,25 @@ fun Buffer.readFully(dst: Buffer, length: Int = dst.writeRemaining) {
         memory.copyTo(dst.memory, offset, length, dst.writePosition)
         dst.commitWritten(length)
     }
+
+    return length
+}
+
+/**
+ * Read at most [length] available bytes to the [dst] buffer or `-1` if no bytes available for read.
+ * @return number of bytes copied or `-1` if empty
+ */
+fun Buffer.readAvailable(dst: Buffer, length: Int = dst.writeRemaining): Int {
+    if (!canRead()) return -1
+
+    val readSize = minOf(dst.writeRemaining, readRemaining, length)
+
+    readExact(readSize, "buffer content") { memory, offset ->
+        memory.copyTo(dst.memory, offset, readSize, dst.writePosition)
+        dst.commitWritten(readSize)
+    }
+
+    return readSize
 }
 
 /**
@@ -353,8 +550,13 @@ fun Buffer.writeFully(src: Buffer) {
  * Fails if not enough space available to write all bytes.
  */
 fun Buffer.writeFully(src: Buffer, length: Int) {
-    require(length >= 0)
-    require(length <= src.readRemaining)
+    require(length >= 0) { "length shouldn't be negative: $length" }
+    require(length <= src.readRemaining) {
+        "length shouldn't be greater than the source read remaining: $length > ${src.readRemaining}"
+    }
+    require(length <= writeRemaining) {
+        "length shouldn't be greater than the destination write remaining space: $length > $writeRemaining"
+    }
 
     writeExact(length, "buffer readable content") { memory, offset ->
         src.memory.copyTo(memory, src.readPosition, length, offset)
