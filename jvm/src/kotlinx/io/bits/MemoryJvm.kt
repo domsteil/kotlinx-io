@@ -198,7 +198,7 @@ private inline fun ByteBuffer.suppressNullCheck(): ByteBuffer {
     return this
 }
 
-private fun ByteBuffer.sliceSafe(offset: Int, length: Int): ByteBuffer {
+internal fun ByteBuffer.sliceSafe(offset: Int, length: Int): ByteBuffer {
     return myDuplicate().apply { position(offset); limit(offset + length) }.mySlice()
 }
 

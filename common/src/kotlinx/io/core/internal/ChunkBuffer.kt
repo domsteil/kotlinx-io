@@ -17,10 +17,27 @@ internal class ChunkBuffer(memory: Memory, origin: ChunkBuffer?) : Buffer(memory
 
     private val nextRef: AtomicRef<ChunkBuffer?> = atomic(null)
     private val refCount = atomic(1)
+
+    /**
+     * Reference to an origin buffer view this was copied from
+     */
     var origin: ChunkBuffer? = null
         private set
 
-    val next: ChunkBuffer? get() = nextRef.value
+    /**
+     * Reference to next buffer view. Useful to chain multiple views.
+     * @see appendNext
+     * @see cleanNext
+     */
+    var next: ChunkBuffer? get() = nextRef.value
+        set(newValue) {
+            if (newValue == null) {
+                cleanNext()
+            } else {
+                appendNext(newValue)
+            }
+        }
+
     val referenceCount: Int get() = refCount.value
 
     fun appendNext(chunk: ChunkBuffer) {
