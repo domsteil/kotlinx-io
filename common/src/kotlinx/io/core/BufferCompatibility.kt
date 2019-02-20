@@ -3,8 +3,10 @@
 package kotlinx.io.core
 
 import kotlinx.io.bits.*
+import kotlinx.io.charsets.*
 import kotlinx.io.core.internal.*
 import kotlinx.io.core.internal.require
+import kotlinx.io.pool.*
 
 
 @Deprecated("Use discard with Int parameter. No replacement")
@@ -88,6 +90,35 @@ fun Buffer.append(csq: CharSequence?, start: Int, end: Int): Buffer = TODO()
 
 @Deprecated("Not supported anymore", level = DeprecationLevel.ERROR)
 fun Buffer.append(csq: CharArray, start: Int, end: Int): Buffer = TODO()
+
+fun Buffer.readText(decoder: CharsetDecoder, out: Appendable, lastBuffer: Boolean, max: Int = Int.MAX_VALUE): Int {
+    TODO()
+}
+
+/**
+ * releases buffer view and returns it to the [pool] if there are no more usages. Based on simple ref-counting so
+ * it is very fragile.
+ */
+@Suppress("DEPRECATION")
+fun IoBuffer.release(pool: ObjectPool<IoBuffer>) {
+    // TODO ???
+    @Suppress("UNCHECKED_CAST")
+    (this as ChunkBuffer).release(pool as ObjectPool<ChunkBuffer>)
+}
+
+fun Buffer.readFully(dst: Array<Byte>, offset: Int = 0, length: Int = dst.size - offset) {
+    read { memory, start, endExclusive ->
+        if (endExclusive - start < length) {
+            throw EOFException("Not enough bytes available to read $length bytes")
+        }
+
+        for (index in 0 until length) {
+            dst[index + offset] = memory[index + start]
+        }
+
+        length
+    }
+}
 
 @Deprecated(
     "This is no longer supported. All operations are big endian by default. Use readXXXLittleEndian " +
