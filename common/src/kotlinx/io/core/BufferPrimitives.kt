@@ -589,8 +589,9 @@ internal inline fun Buffer.writeExact(size: Int, name: String, block: (memory: M
     }
 
     write { memory, start, endExclusive ->
-        kotlinx.io.core.internal.require(endExclusive - start >= size) {
-            throw EOFException("Not enough free space to write a $name of size $size. Available space $writeRemaining.")
+        val writeRemaining = endExclusive - start
+        if (writeRemaining < size) {
+            throw InsufficientSpaceException(name, size, writeRemaining)
         }
         block(memory, start)
         size
