@@ -9,8 +9,8 @@ import kotlinx.io.core.Buffer
 import kotlinx.io.core.DefaultChunkedBufferPool
 import kotlinx.io.pool.ObjectPool
 
-@PublishedApi
-internal class ChunkBuffer(memory: Memory, origin: ChunkBuffer?) : Buffer(memory) {
+@DangerousInternalIoApi
+open class ChunkBuffer internal constructor(memory: Memory, origin: ChunkBuffer?) : Buffer(memory) {
     init {
         require(origin !== this) { "A chunk couldn't be a view of itself." }
     }
@@ -81,7 +81,7 @@ internal class ChunkBuffer(memory: Memory, origin: ChunkBuffer?) : Buffer(memory
     /**
      * Increase ref-count. May fail if already released.
      */
-    private fun acquire() {
+    internal fun acquire() {
         refCount.update { old ->
             if (old <= 0) throw IllegalStateException("Unable to acquire chunk: it is already released.")
             old + 1
