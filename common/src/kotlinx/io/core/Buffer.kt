@@ -366,3 +366,21 @@ internal fun Buffer.endGapReservationFailedDueToContent(endGap: Int) {
             " there are already $readRemaining content bytes at offset $readPosition"
     )
 }
+
+class InsufficientSpaceException(message: String = "Not enough free space") : Exception(message) {
+    constructor(
+        size: Int,
+        availableSpace: Int
+    ) : this("Not enough free space to write $size bytes, available $availableSpace bytes.")
+
+    constructor(
+        name: String,
+        size: Int,
+        availableSpace: Int
+    ) : this("Not enough free space to write $name of $size bytes, available $availableSpace bytes.")
+
+    constructor(
+        size: Long,
+        availableSpace: Long
+    ) : this("Not enough free space to write $size bytes, available $availableSpace bytes.")
+}
