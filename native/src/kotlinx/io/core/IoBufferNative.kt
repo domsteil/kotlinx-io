@@ -6,15 +6,17 @@ import kotlinx.io.bits.*
 import kotlinx.io.core.internal.*
 import kotlinx.io.pool.*
 import platform.posix.*
+import kotlin.contracts.*
 import kotlin.native.concurrent.*
 
 @PublishedApi
 internal val MAX_SIZE: size_t = size_t.MAX_VALUE
 
+@Deprecated("")
 actual class IoBuffer internal constructor(
-        internal var content: CPointer<ByteVar>,
-        private val contentCapacity: Int,
-        origin: ChunkBuffer?
+    internal var content: CPointer<ByteVar>,
+    private val contentCapacity: Int,
+    origin: ChunkBuffer?
 ) : Input, Output, ChunkBuffer(Memory.of(content, contentCapacity), origin) {
     override fun discard(n: Long): Long {
         return (this as Buffer).discard(n)
@@ -34,6 +36,10 @@ actual class IoBuffer internal constructor(
         require(this !== origin) { "origin shouldn't point to itself" }
     }
 
+    @Deprecated(
+        "Not supported anymore. All operations are big endian by default.",
+        level = DeprecationLevel.ERROR
+    )
     final override var byteOrder: ByteOrder get() = ByteOrder.BIG_ENDIAN
         set(newOrder) {
             if (newOrder != ByteOrder.BIG_ENDIAN) {
@@ -105,6 +111,7 @@ actual class IoBuffer internal constructor(
         (this as Buffer).readFully(dst, offset, length)
 
     }
+
     final override fun readFully(dst: FloatArray, offset: Int, length: Int) {
         (this as Buffer).readFully(dst, offset, length)
     }
@@ -334,35 +341,30 @@ internal inline fun swap(s: Float): Float = Float.fromBits(swap(s.toRawBits()))
 internal inline fun swap(s: Double): Double = Double.fromBits(swap(s.toRawBits()))
 
 @ThreadLocal
-private object BufferPoolNativeWorkaround : DefaultPool<IoBuffer>(BUFFER_VIEW_POOL_SIZE) {
-    override fun produceInstance(): IoBuffer {
-        val buffer = nativeHeap.allocArray<ByteVar>(BUFFER_VIEW_SIZE)
-        return IoBuffer(buffer, BUFFER_VIEW_SIZE, null)
+private object BufferPoolNativeWorkaround : DefaultPool<ChunkBuffer>(BUFFER_VIEW_POOL_SIZE) {
+    override fun produceInstance(): ChunkBuffer {
+        val buffer = nativeHeap.allocMemory(BUFFER_VIEW_SIZE)
+        return ChunkBuffer(buffer, null)
     }
 
-    override fun clearInstance(instance: IoBuffer): IoBuffer {
+    override fun clearInstance(instance: ChunkBuffer): ChunkBuffer {
         return super.clearInstance(instance).apply {
             instance.resetForWrite()
             instance.next = null
-            instance.attachment = null
-
-            if (instance.refCount != 0) throw IllegalStateException("Unable to clear instance: refCount is ${instance.refCount} != 0")
-            instance.refCount = 1
+            instance.unpark()
         }
     }
 
-    override fun validateInstance(instance: IoBuffer) {
+    override fun validateInstance(instance: ChunkBuffer) {
         super.validateInstance(instance)
 
-        require(instance.refCount == 0) { "unable to recycle buffer: buffer view is in use (refCount = ${instance.refCount})"}
+        require(instance.referenceCount == 0) { "unable to recycle buffer: buffer view is in use (refCount = ${instance.referenceCount})" }
         require(instance.origin == null) { "Unable to recycle buffer view: view copy shouldn't be recycled" }
     }
 
-    override fun disposeInstance(instance: IoBuffer) {
-        require(instance.refCount == 0) { "Couldn't dispose buffer: it is still in-use: refCount = ${instance.refCount}" }
-        require(instance.content !== IoBuffer.EmptyBuffer) { "Couldn't dispose empty buffer" }
-
-        nativeHeap.free(instance.content)
+    override fun disposeInstance(instance: ChunkBuffer) {
+        require(instance.referenceCount == 0) { "Couldn't dispose buffer: it is still in-use: refCount = ${instance.referenceCount}" }
+        nativeHeap.free(instance.memory)
     }
 }
 
@@ -408,3 +410,30 @@ fun Buffer.writeFully(pointer: CPointer<ByteVar>, offset: Long, length: Int) {
     }
 }
 
+inline fun Buffer.readDirect(block: (CPointer<ByteVar>) -> Int): Int {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return read { memory, start, _ ->
+        block(memory.pointer.plus(start)!!)
+    }
+}
+
+inline fun Buffer.writeDirect(block: (CPointer<ByteVar>) -> Int): Int {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return write { memory, start, _ ->
+        block(memory.pointer.plus(start)!!)
+    }
+}
+
+fun ChunkBuffer(ptr: CPointer<*>, lengthInBytes: Int, origin: ChunkBuffer?): ChunkBuffer {
+    return ChunkBuffer(Memory.of(ptr, lengthInBytes), origin)
+}
+
+fun ChunkBuffer(ptr: CPointer<*>, lengthInBytes: Long, origin: ChunkBuffer?): ChunkBuffer {
+    return ChunkBuffer(Memory.of(ptr, lengthInBytes), origin)
+}

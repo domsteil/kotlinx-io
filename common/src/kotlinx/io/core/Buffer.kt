@@ -74,6 +74,8 @@ open class Buffer(val memory: Memory) {
      * @throws EOFException if [count] is bigger than available bytes.
      */
     fun discard(count: Int = readRemaining) {
+        if (count == 0) return
+
         val newReadPosition = readPosition + count
         if (count < 0 || newReadPosition > writePosition) {
             discardFailed(count, readRemaining)
@@ -88,6 +90,14 @@ open class Buffer(val memory: Memory) {
             commitWrittenFailed(count, writeRemaining)
         }
         writePosition = newWritePosition
+    }
+
+    internal fun discardUntilIndex(position: Int) {
+        if (position < 0 || position > writePosition) {
+            discardFailed(position - readPosition, readRemaining)
+        }
+
+        readPosition = position
     }
 
     /**
@@ -203,6 +213,7 @@ open class Buffer(val memory: Memory) {
 
     internal fun releaseStartGap(newReadPosition: Int) {
         require(newReadPosition >= 0)
+        require(newReadPosition <= readPosition)
 
         readPosition = newReadPosition
         if (startGap > newReadPosition) {
@@ -266,7 +277,7 @@ open class Buffer(val memory: Memory) {
     companion object {
         /**
          * Number of bytes usually reserved in the end of chunk
-         * when several instances of [IoBuffer] are connected into a chain (usually inside of [ByteReadPacket]
+         * when several instances of [kotlinx.io.core.internal.ChunkBuffer] are connected into a chain (usually inside of [ByteReadPacket]
          * or [BytePacketBuilder])
          */
         const val ReservedSize: Int = 8
@@ -365,6 +376,14 @@ internal fun Buffer.endGapReservationFailedDueToContent(endGap: Int) {
         "Unable to reserve end gap $endGap:" +
             " there are already $readRemaining content bytes at offset $readPosition"
     )
+}
+
+internal fun Buffer.restoreStartGap(size: Int) {
+    releaseStartGap(readPosition - size)
+}
+
+internal fun Buffer.restoreEndGap(size: Int) {
+    releaseEndGap()
 }
 
 class InsufficientSpaceException(message: String = "Not enough free space") : Exception(message) {

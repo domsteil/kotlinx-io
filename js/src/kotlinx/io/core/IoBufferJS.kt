@@ -7,13 +7,19 @@ import kotlinx.io.core.internal.*
 import kotlinx.io.js.*
 import kotlinx.io.pool.*
 import org.khronos.webgl.*
+import kotlin.contracts.*
 
+@Deprecated("")
 actual class IoBuffer internal constructor(
-        internal var content: ArrayBuffer,
-        origin: IoBuffer?
+    internal var content: ArrayBuffer,
+    origin: IoBuffer?
 ) : Input, Output, ChunkBuffer(Memory.of(content), origin) {
     override val endOfInput: Boolean get() = writePosition == readPosition
 
+    @Deprecated(
+        "Not supported anymore. All operations are big endian by default.",
+        level = DeprecationLevel.ERROR
+    )
     final override var byteOrder: ByteOrder
         get() = ByteOrder.BIG_ENDIAN
         set(newOrder) {
@@ -21,6 +27,11 @@ actual class IoBuffer internal constructor(
                 throw IllegalArgumentException("Only big endian is supported")
             }
         }
+
+    /**
+     * User data: could be a session, connection or anything useful
+     */
+    actual var attachment: Any? = null
 
     final override fun readFully(dst: ArrayBuffer, offset: Int, length: Int) {
         (this as Buffer).readFully(dst, offset, length)
@@ -89,11 +100,20 @@ actual class IoBuffer internal constructor(
         return (this as Buffer).discard(n)
     }
 
-    @Deprecated("Use writeFully instead", ReplaceWith("writeFully(array, offset, length)"))
+    @Deprecated(
+        "Use writeFully instead",
+        ReplaceWith("writeFully(array, offset, length)"),
+        level = DeprecationLevel.ERROR
+    )
     fun write(array: ByteArray, offset: Int, length: Int) {
         writeFully(array, offset, length)
     }
 
+    @Deprecated(
+        "Use writeFully instead",
+        ReplaceWith("writeFully(array, offset, length)"),
+        level = DeprecationLevel.ERROR
+    )
     fun write(src: Int8Array, offset: Int, length: Int) {
         (this as Buffer).writeFully(src, offset, length)
     }
@@ -224,7 +244,7 @@ actual class IoBuffer internal constructor(
 
     @Deprecated("Use writeFully instead", ReplaceWith("writeFully(src, length)"))
     fun writeBuffer(src: IoBuffer, length: Int): Int {
-        writeFully(src, length)
+        (this as Buffer).writeFully(src, length)
         return length
     }
 
@@ -278,7 +298,7 @@ actual class IoBuffer internal constructor(
     inline fun writeDirect(block: (DataView) -> Int): Int {
         val view = writableView()
         val rc = block(view)
-        check(rc >= 0) { "The returned value from block function shouldn't be negative: $rc"}
+        check(rc >= 0) { "The returned value from block function shouldn't be negative: $rc" }
         check(rc <= writeRemaining) { "The returned value from block function is too big: $rc > $writeRemaining" }
         commitWritten(rc)
         return rc
@@ -301,14 +321,10 @@ actual class IoBuffer internal constructor(
 
         private val EmptyBuffer = ArrayBuffer(0)
         private val EmptyDataView = DataView(EmptyBuffer)
-        private val Empty8 = Int8Array(0)
-        private val Empty16 = Int16Array(0)
-        private val Empty32 = Int32Array(0)
-        private val EmptyF32 = Float32Array(0)
-        private val EmptyF64 = Float64Array(0)
 
+        @Deprecated("", level = DeprecationLevel.ERROR)
         actual val Empty = IoBuffer(EmptyBuffer, null)
-        actual val Pool: ObjectPool<IoBuffer> = object: DefaultPool<IoBuffer>(BUFFER_VIEW_POOL_SIZE) {
+        actual val Pool: ObjectPool<IoBuffer> = object : DefaultPool<IoBuffer>(BUFFER_VIEW_POOL_SIZE) {
             override fun produceInstance(): IoBuffer {
                 return IoBuffer(ArrayBuffer(BUFFER_VIEW_SIZE), null)
             }
@@ -325,7 +341,7 @@ actual class IoBuffer internal constructor(
             override fun validateInstance(instance: IoBuffer) {
                 super.validateInstance(instance)
 
-                require(instance.referenceCount == 0) { "unable to recycle buffer: buffer view is in use (refCount = ${instance.referenceCount})"}
+                require(instance.referenceCount == 0) { "unable to recycle buffer: buffer view is in use (refCount = ${instance.referenceCount})" }
                 require(instance.origin == null) { "Unable to recycle buffer view: view copy shouldn't be recycled" }
             }
 
@@ -342,13 +358,6 @@ actual class IoBuffer internal constructor(
 
         actual val EmptyPool: ObjectPool<IoBuffer> = EmptyBufferPoolImpl
     }
-
-    /**
-     * User data: could be a session, connection or anything useful
-     */
-    actual var attachment: Any?
-        get() = TODO("not implemented") //To change initializer of created properties use File | Settings | File Templates.
-        set(value) {}
 }
 
 fun Buffer.readFully(dst: ArrayBuffer, offset: Int = 0, length: Int = dst.byteLength - offset) {
@@ -408,3 +417,24 @@ fun Buffer.writeFully(src: ArrayBufferView, offset: Int = 0, length: Int = src.b
         length
     }
 }
+
+inline fun Buffer.writeDirect(block: (DataView) -> Int): Int {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return write { memory, start, endExclusive ->
+        block(memory.slice(start, endExclusive - start).view)
+    }
+}
+
+inline fun Buffer.readDirect(block: (DataView) -> Int): Int {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return read { memory, start, endExclusive ->
+        block(memory.slice(start, endExclusive - start).view)
+    }
+}
+

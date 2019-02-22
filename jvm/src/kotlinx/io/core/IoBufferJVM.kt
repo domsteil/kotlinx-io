@@ -10,10 +10,12 @@ import kotlinx.io.utils.*
 import java.nio.*
 import java.nio.charset.*
 import kotlinx.io.core.internal.require
+import kotlin.contracts.*
 
 /**
  * A read-write facade to actual buffer of fixed size. Multiple views could share the same actual buffer.
  */
+@Deprecated("")
 actual class IoBuffer private constructor(
     private var content: ByteBuffer,
     origin: ChunkBuffer?
@@ -476,4 +478,24 @@ fun Buffer.readAvailable(dst: ByteBuffer, length: Int = dst.remaining()): Int {
     val size = minOf(readRemaining, length)
     readFully(dst, size)
     return size
+}
+
+inline fun Buffer.readDirect(block: (ByteBuffer) -> Int): Int {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return read { memory, start, endExclusive ->
+        block(memory.slice(start, endExclusive - start).buffer)
+    }
+}
+
+inline fun Buffer.writeDirect(block: (ByteBuffer) -> Int): Int {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return write { memory, start, endExclusive ->
+        block(memory.slice(start, endExclusive - start).buffer)
+    }
 }

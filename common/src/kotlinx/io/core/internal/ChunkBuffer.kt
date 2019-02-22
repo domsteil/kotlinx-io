@@ -5,9 +5,9 @@ import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.update
 import kotlinx.atomicfu.updateAndGet
 import kotlinx.io.bits.Memory
-import kotlinx.io.core.Buffer
+import kotlinx.io.core.*
 import kotlinx.io.core.DefaultChunkedBufferPool
-import kotlinx.io.pool.ObjectPool
+import kotlinx.io.pool.*
 
 @DangerousInternalIoApi
 open class ChunkBuffer internal constructor(memory: Memory, origin: ChunkBuffer?) : Buffer(memory) {
@@ -117,6 +117,30 @@ open class ChunkBuffer internal constructor(memory: Memory, origin: ChunkBuffer?
 
     companion object {
         val Pool: ObjectPool<ChunkBuffer> get() = DefaultChunkedBufferPool
+        val Empty: ChunkBuffer = ChunkBuffer(Memory.Empty, null)
+
+        /**
+         * A pool that always returns [ChunkBuffer.Empty]
+         */
+        val EmptyPool: ObjectPool<ChunkBuffer> = object : ObjectPool<ChunkBuffer> {
+            override val capacity: Int get() = 1
+
+            override fun borrow() = Empty
+
+            override fun recycle(instance: ChunkBuffer) {
+                require(instance === ChunkBuffer.Empty) { "Only ChunkBuffer.Empty instance could be recycled." }
+            }
+
+            override fun dispose() {
+            }
+        }
+
+        // TODO
+        internal val NoPool: ObjectPool<ChunkBuffer> = object : NoPoolImpl<ChunkBuffer>() {
+            override fun borrow(): ChunkBuffer {
+                TODO("Not supported")
+            }
+        }
     }
 }
 

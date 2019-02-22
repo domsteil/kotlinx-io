@@ -68,6 +68,9 @@ fun Buffer.pushBack(n: Int): Unit = rewind(n)
 @Deprecated("Use duplicate instead", ReplaceWith("duplicate()"))
 fun Buffer.makeView(): Buffer = duplicate()
 
+@Deprecated("Use duplicate instead", ReplaceWith("duplicate()"))
+fun ChunkBuffer.makeView(): ChunkBuffer = duplicate()
+
 @Deprecated("Does nothing.")
 fun Buffer.flush() {
 }

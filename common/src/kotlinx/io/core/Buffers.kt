@@ -2,13 +2,14 @@ package kotlinx.io.core
 
 import kotlinx.io.core.internal.*
 import kotlinx.io.pool.*
+import kotlin.contracts.*
 
 /**
  * A read-write facade to actual buffer of fixed size. Multiple views could share the same actual buffer.
  * Concurrent unsafe. The only concurrent-safe operation is [release].
  * In most cases [ByteReadPacket] and [BytePacketBuilder] should be used instead.
  */
-@Deprecated("Use Buffer instead.")
+@Deprecated("Use Buffer instead.", replaceWith = ReplaceWith("Buffer", "kotlinx.io.core.Buffer"))
 expect class IoBuffer : Input, Output, ChunkBuffer {
     /**
      * User data: could be a session, connection or anything useful
@@ -23,14 +24,16 @@ expect class IoBuffer : Input, Output, ChunkBuffer {
     companion object {
         /**
          * Number of bytes usually reserved in the end of chunk
-         * when several instances of [IoBuffer] are connected into a chain (usually inside of [ByteReadPacket]
+         * when several instances of [ChunkBuffer] are connected into a chain (usually inside of [ByteReadPacket]
          * or [BytePacketBuilder])
          */
+        @Deprecated("Use Buffer.ReservedSize instead.")
         val ReservedSize: Int
 
         /**
          * The empty buffer singleton: it has zero capacity for read and write.
          */
+        @Deprecated("Shouldn't be used anymore.", level = DeprecationLevel.ERROR)
         val Empty: IoBuffer
 
         /**
@@ -50,6 +53,7 @@ expect class IoBuffer : Input, Output, ChunkBuffer {
     }
 }
 
+@Suppress("DEPRECATION", "DEPRECATION_ERROR")
 internal object EmptyBufferPoolImpl : NoPoolImpl<IoBuffer>() {
     override fun borrow() = IoBuffer.Empty
 }
@@ -58,6 +62,17 @@ internal tailrec fun ChunkBuffer?.releaseAll(pool: ObjectPool<ChunkBuffer>) {
     if (this == null) return
     release(pool)
     next.releaseAll(pool)
+}
+
+internal inline fun ChunkBuffer.forEachChunk(block: (ChunkBuffer) -> Unit) {
+    contract {
+        callsInPlace(block, InvocationKind.AT_LEAST_ONCE)
+    }
+    var current = this
+    do {
+        block(current)
+        current = current.next ?: break
+    } while (true)
 }
 
 /**
@@ -88,7 +103,7 @@ internal tailrec fun ChunkBuffer.findTail(): ChunkBuffer {
  * Summarize remainings of all elements of the chain
  */
 @DangerousInternalIoApi
-fun IoBuffer.remainingAll(): Long = remainingAll(0L)
+fun ChunkBuffer.remainingAll(): Long = remainingAll(0L)
 
 private tailrec fun ChunkBuffer.remainingAll(n: Long): Long {
     val rem = readRemaining.toLong() + n
