@@ -1,6 +1,7 @@
 package kotlinx.io.core
 
 import kotlinx.io.bits.*
+import kotlinx.io.core.Buffer.*
 import kotlinx.io.core.internal.*
 import kotlinx.io.pool.*
 import org.khronos.webgl.*
@@ -88,7 +89,7 @@ internal actual constructor(head: ChunkBuffer, remaining: Long, pool: ObjectPool
             get() = ByteReadPacket(ChunkBuffer.Empty, object : NoPoolImpl<ChunkBuffer>() {
                 override fun borrow() = ChunkBuffer.Empty
             })
-        actual inline val ReservedSize get() = IoBuffer.ReservedSize
+        actual inline val ReservedSize get() = Buffer.ReservedSize
     }
 }
 

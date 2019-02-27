@@ -1,7 +1,8 @@
 package kotlinx.io.core
 
+import kotlinx.io.bits.*
 import kotlinx.io.core.internal.*
-import kotlinx.io.errors.IOException
+import kotlinx.io.errors.*
 import kotlinx.io.pool.*
 
 /**
@@ -15,6 +16,8 @@ abstract class ByteReadPacketBase(
     remaining: Long = head.remainingAll(),
     val pool: ObjectPool<ChunkBuffer>
 ) : Input {
+
+    internal var headMemory: Memory = TODO_ERROR(head.memory)
 
     @Deprecated(
         "Not supported anymore. All operations are big endian by default.",
@@ -430,12 +433,12 @@ abstract class ByteReadPacketBase(
     final override fun tryPeek(): Int {
         val head = head
         if (headRemaining > 0) {
-            return head.tryPeek()
+            return head.tryPeekByte()
         }
 
         if (tailRemaining == 0L && noMoreChunksAvailable) return -1
 
-        return prepareRead(1, head)?.tryPeek() ?: -1
+        return prepareRead(1, head)?.tryPeekByte() ?: -1
     }
 
     final override fun peekTo(buffer: IoBuffer): Int {
@@ -663,7 +666,7 @@ abstract class ByteReadPacketBase(
         val next = current.next ?: return fixGapAfterReadFallback(current)
 
         val remaining = current.readRemaining
-        val overrunSize = minOf(remaining, IoBuffer.ReservedSize - current.endGap)
+        val overrunSize = minOf(remaining, Buffer.ReservedSize - current.endGap)
         if (next.startGap < overrunSize) return fixGapAfterReadFallback(current)
 
         next.restoreStartGap(overrunSize)
@@ -691,13 +694,13 @@ abstract class ByteReadPacketBase(
         }
 
         val size = current.readRemaining
-        val overrun = minOf(size, IoBuffer.ReservedSize - current.endGap)
+        val overrun = minOf(size, Buffer.ReservedSize - current.endGap)
 
         if (size > overrun) {
             fixGapAfterReadFallbackUnreserved(current, size, overrun)
         } else {
             val new = pool.borrow()
-            new.reserveEndGap(IoBuffer.ReservedSize)
+            new.reserveEndGap(Buffer.ReservedSize)
             new.next = current.next
 
             new.writeBufferAppend(current, size)
@@ -716,8 +719,8 @@ abstract class ByteReadPacketBase(
         val chunk1 = pool.borrow()
         val chunk2 = pool.borrow()
 
-        chunk1.reserveEndGap(IoBuffer.ReservedSize)
-        chunk2.reserveEndGap(IoBuffer.ReservedSize)
+        chunk1.reserveEndGap(Buffer.ReservedSize)
+        chunk2.reserveEndGap(Buffer.ReservedSize)
         chunk1.next = chunk2
         chunk2.next = current.next
 
@@ -791,7 +794,7 @@ abstract class ByteReadPacketBase(
      */
     protected abstract fun closeSource()
 
-    internal fun markNoMoreChunksAvailable() {
+    protected fun markNoMoreChunksAvailable() {
         if (!noMoreChunksAvailable) {
             noMoreChunksAvailable = true
         }
@@ -850,13 +853,13 @@ abstract class ByteReadPacketBase(
         }
 
         if (head.readRemaining >= minSize) return head
-        if (minSize > IoBuffer.ReservedSize) minSizeIsTooBig(minSize)
+        if (minSize > Buffer.ReservedSize) minSizeIsTooBig(minSize)
 
         return prepareRead(minSize, head)
     }
 
     private fun minSizeIsTooBig(minSize: Int): Nothing {
-        throw IllegalStateException("minSize of $minSize is too big (should be less than ${IoBuffer.ReservedSize}")
+        throw IllegalStateException("minSize of $minSize is too big (should be less than ${Buffer.ReservedSize}")
     }
 
     private fun afterRead() {

@@ -57,7 +57,7 @@ internal actual constructor(head: ChunkBuffer, remaining: Long, pool: ObjectPool
 
     actual companion object {
         actual val Empty: ByteReadPacket
-            get() = ByteReadPacket(IoBuffer.Empty, object : NoPoolImpl<ChunkBuffer>() {
+            get() = ByteReadPacket(ChunkBuffer.Empty, object : NoPoolImpl<ChunkBuffer>() {
                 override fun borrow() = ChunkBuffer.Empty
             })
 

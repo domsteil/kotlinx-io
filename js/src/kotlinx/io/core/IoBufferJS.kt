@@ -4,12 +4,11 @@ package kotlinx.io.core
 
 import kotlinx.io.bits.*
 import kotlinx.io.core.internal.*
-import kotlinx.io.js.*
 import kotlinx.io.pool.*
 import org.khronos.webgl.*
 import kotlin.contracts.*
 
-@Deprecated("")
+@Deprecated("Use Buffer instead.", replaceWith = ReplaceWith("Buffer", "kotlinx.io.core.Buffer"))
 actual class IoBuffer internal constructor(
     internal var content: ArrayBuffer,
     origin: IoBuffer?
@@ -28,10 +27,9 @@ actual class IoBuffer internal constructor(
             }
         }
 
-    /**
-     * User data: could be a session, connection or anything useful
-     */
-    actual var attachment: Any? = null
+    final override fun tryPeek(): Int {
+        return tryPeekByte()
+    }
 
     final override fun readFully(dst: ArrayBuffer, offset: Int, length: Int) {
         (this as Buffer).readFully(dst, offset, length)
@@ -317,13 +315,19 @@ actual class IoBuffer internal constructor(
          * when several instances of [IoBuffer] are connected into a chain (usually inside of [ByteReadPacket]
          * or [BytePacketBuilder])
          */
-        actual val ReservedSize: Int = 8
+        @Deprecated("Use Buffer.ReservedSize instead.", ReplaceWith("Buffer.ReservedSize"))
+        actual val ReservedSize: Int
+            get() = Buffer.ReservedSize
 
         private val EmptyBuffer = ArrayBuffer(0)
         private val EmptyDataView = DataView(EmptyBuffer)
 
         @Deprecated("", level = DeprecationLevel.ERROR)
         actual val Empty = IoBuffer(EmptyBuffer, null)
+
+        /**
+         * The default buffer pool
+         */
         actual val Pool: ObjectPool<IoBuffer> = object : DefaultPool<IoBuffer>(BUFFER_VIEW_POOL_SIZE) {
             override fun produceInstance(): IoBuffer {
                 return IoBuffer(ArrayBuffer(BUFFER_VIEW_SIZE), null)
@@ -438,3 +442,23 @@ inline fun Buffer.readDirect(block: (DataView) -> Int): Int {
     }
 }
 
+
+inline fun Buffer.writeDirectInt8Array(block: (Int8Array) -> Int): Int {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return write { memory, start, endExclusive ->
+        block(Int8Array(memory.view.buffer, memory.view.byteOffset + start, endExclusive - start))
+    }
+}
+
+inline fun Buffer.readDirectInt8Array(block: (Int8Array) -> Int): Int {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+
+    return read { memory, start, endExclusive ->
+        block(Int8Array(memory.view.buffer, memory.view.byteOffset + start, endExclusive - start))
+    }
+}

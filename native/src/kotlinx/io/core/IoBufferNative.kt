@@ -12,7 +12,7 @@ import kotlin.native.concurrent.*
 @PublishedApi
 internal val MAX_SIZE: size_t = size_t.MAX_VALUE
 
-@Deprecated("")
+@Deprecated("Use Buffer instead.", replaceWith = ReplaceWith("Buffer", "kotlinx.io.core.Buffer"))
 actual class IoBuffer internal constructor(
     internal var content: CPointer<ByteVar>,
     private val contentCapacity: Int,
@@ -25,9 +25,6 @@ actual class IoBuffer internal constructor(
     internal var refCount = 1
 
     constructor(content: CPointer<ByteVar>, contentCapacity: Int) : this(content, contentCapacity, null)
-
-    @ExperimentalIoApi
-    actual var attachment: Any? = null
 
     override val endOfInput: Boolean get() = !canRead()
 
@@ -46,6 +43,10 @@ actual class IoBuffer internal constructor(
                 throw IllegalArgumentException("Only BIG_ENDIAN is supported")
             }
         }
+
+    final override fun tryPeek(): Int {
+        return tryPeekByte()
+    }
 
     final override fun readShort(): Short {
         return (this as Buffer).readShort()
@@ -285,12 +286,16 @@ actual class IoBuffer internal constructor(
          * when several instances of [IoBuffer] are connected into a chain (usually inside of [ByteReadPacket]
          * or [BytePacketBuilder])
          */
+        @Deprecated("Use Buffer.ReservedSize instead.", ReplaceWith("Buffer.ReservedSize"))
         actual val ReservedSize: Int get() = Buffer.ReservedSize
 
         internal val EmptyBuffer = nativeHeap.allocArray<ByteVar>(0)
 
         actual val Empty = IoBuffer(EmptyBuffer, 0, null)
 
+        /**
+         * The default buffer pool
+         */
         actual val Pool: ObjectPool<IoBuffer> get() = NoPool // BufferPoolNativeWorkaround
 
         actual val NoPool: ObjectPool<IoBuffer> = object : NoPoolImpl<IoBuffer>() {
