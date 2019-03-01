@@ -20,14 +20,6 @@ expect interface Input : Closeable {
     val endOfInput: Boolean
 
     /**
-     * Prefetch at least [min] bytes from the underlying source. May do nothing if there are already requested bytes
-     * buffered or when the underlying source is already consumed entirely.
-     * @return `true` if at least [min] bytes available of `false` when not enough bytes buffered and
-     * no more pending bytes in the underlying source.
-     */
-    fun prefetch(min: Int): Boolean
-
-    /**
      * Read the next upcoming byte
      * @throws EOFException if no more bytes available.
      */
@@ -39,6 +31,16 @@ expect interface Input : Closeable {
     fun tryPeek(): Int
 
     /**
+     * Copy at least [min] but up to [max] bytes to the specified [destination] buffer from this input
+     * skipping [offset] bytes.
+     * It is safe to specify `max > destination.writeRemaining` but
+     * `min` shouldn't be bigger than the [destination] free space.
+     *
+     * @return number of bytes copied to the [destination] possibly `0`
+     */
+    fun peekTo(destination: Buffer, offset: Int = 0, min: Int = 1, max: Int = Int.MAX_VALUE): Int
+
+    /**
      * Discard at most [n] bytes
      */
     fun discard(n: Long): Long
@@ -48,8 +50,6 @@ expect interface Input : Closeable {
      * It is not recommended to invoke it with read operations in-progress concurrently.
      */
     override fun close()
-
-    // TODO add prefetch(Int): Boolean
 
     /**
      * Copy available bytes to the specified [buffer] but keep them available.
@@ -97,6 +97,7 @@ expect interface Input : Closeable {
     @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     fun readFully(dst: DoubleArray, offset: Int, length: Int)
 
+    @Suppress("DEPRECATION")
     @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     fun readFully(dst: IoBuffer, length: Int)
 
@@ -118,6 +119,7 @@ expect interface Input : Closeable {
     @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     fun readAvailable(dst: DoubleArray, offset: Int, length: Int): Int
 
+    @Suppress("DEPRECATION")
     @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     fun readAvailable(dst: IoBuffer, length: Int): Int
 }

@@ -45,10 +45,6 @@ actual class IoBuffer internal constructor(
             }
         }
 
-    override fun prefetch(min: Int): Boolean {
-        return readRemaining >= min
-    }
-
     final override fun tryPeek(): Int {
         return tryPeekByte()
     }

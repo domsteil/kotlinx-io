@@ -77,12 +77,51 @@ abstract class AbstractInput(
             }
         }
 
-    final override fun prefetch(min: Int): Boolean {
+    internal final fun prefetch(min: Int): Boolean {
         if (min <= 0) return true
         val headRemaining = headRemaining
         if (headRemaining >= min || headRemaining + tailRemaining >= min) return true
 
         return doPrefetch(min)
+    }
+
+    final override fun peekTo(destination: Buffer, offset: Int, min: Int, max: Int): Int {
+        if (!prefetch(min + offset)) {
+            prematureEndOfStream(min + offset)
+        }
+
+        var current: ChunkBuffer = head
+        var copied = 0
+        var skip = offset
+        var writePosition = destination.writePosition
+
+        while (copied < min) {
+            val chunkSize = current.readRemaining
+            if (chunkSize > skip) {
+                val size = minOf(chunkSize - skip, max - copied)
+                current.memory.copyTo(
+                    destination.memory,
+                    current.readPosition + skip,
+                    size,
+                    writePosition
+                )
+                skip = 0
+                copied += size
+                writePosition += size
+            } else {
+                skip -= chunkSize
+            }
+
+            current = current.next ?: break
+        }
+
+        if (copied < min) {
+            prematureEndOfStream(min - copied)
+        }
+
+        destination.commitWritten(copied)
+
+        return copied
     }
 
     /**
@@ -491,6 +530,7 @@ abstract class AbstractInput(
         return prepareReadLoop(1, head)?.tryPeekByte() ?: -1
     }
 
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     final override fun peekTo(buffer: IoBuffer): Int {
         val head = prepareReadHead(1) ?: return -1
 

@@ -56,10 +56,6 @@ actual class IoBuffer private constructor(
     override val endOfInput: Boolean
         get() = !canRead()
 
-    override fun prefetch(min: Int): Boolean {
-        return readRemaining >= min
-    }
-
     /**
      * read and write operations byte-order (endianness)
      */
