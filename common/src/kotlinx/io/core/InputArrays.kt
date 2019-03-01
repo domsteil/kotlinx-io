@@ -1,7 +1,6 @@
 package kotlinx.io.core
 
 import kotlinx.io.core.internal.*
-import kotlinx.io.errors.*
 
 fun Input.peekTo(buffer: Buffer): Int {
     if (this is AbstractInput) {
@@ -35,8 +34,6 @@ private fun Input.peekToFallback(buffer: Buffer): Int {
     buffer.commitWritten(size)
     return size
 }
-
-private fun Input.prefetch(minSize: Int): Boolean = TODO_ERROR()
 
 fun Input.peekTo(min: Int, buffer: Buffer): Int {
     if (!prefetch(min)) prematureEndOfStream(min)
@@ -134,11 +131,6 @@ fun Input.readAvailable(dst: DoubleArray, offset: Int = 0, length: Int = dst.siz
     return length - readFullyTemplate(offset, length, 8) { src, dstOffset, count ->
         src.readFully(dst, dstOffset, count)
     }
-}
-
-@Suppress("EXTENSION_SHADOWED_BY_MEMBER")
-fun Input.readAvailable(dst: IoBuffer, length: Int): Int {
-    return readAvailable(dst as Buffer, length)
 }
 
 fun Input.readAvailable(dst: Buffer, length: Int = dst.writeRemaining): Int {

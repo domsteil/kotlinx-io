@@ -19,6 +19,14 @@ actual interface Input : Closeable {
     actual val endOfInput: Boolean
 
     /**
+     * Prefetch at least [min] bytes from the underlying source. May do nothing if there are already requested bytes
+     * buffered or when the underlying source is already consumed entirely.
+     * @return `true` if at least [min] bytes available of `false` when not enough bytes buffered and
+     * no more pending bytes in the underlying source.
+     */
+    actual fun prefetch(min: Int): Boolean
+
+    /**
      * Read the next upcoming byte
      * @throws EOFException if no more bytes available.
      */

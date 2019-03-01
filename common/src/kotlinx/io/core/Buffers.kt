@@ -11,6 +11,7 @@ import kotlin.contracts.*
  */
 @Deprecated("Use Buffer instead.", replaceWith = ReplaceWith("Buffer", "kotlinx.io.core.Buffer"))
 expect class IoBuffer : Input, Output, ChunkBuffer {
+
     override fun close()
 
     final override fun flush()

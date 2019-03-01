@@ -15,6 +15,7 @@ import kotlin.contracts.*
 /**
  * A read-write facade to actual buffer of fixed size. Multiple views could share the same actual buffer.
  */
+@Suppress("DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES")
 @Deprecated("Use Buffer instead.", replaceWith = ReplaceWith("Buffer", "kotlinx.io.core.Buffer"))
 actual class IoBuffer private constructor(
     private var content: ByteBuffer,
@@ -54,6 +55,10 @@ actual class IoBuffer private constructor(
 
     override val endOfInput: Boolean
         get() = !canRead()
+
+    override fun prefetch(min: Int): Boolean {
+        return readRemaining >= min
+    }
 
     /**
      * read and write operations byte-order (endianness)
@@ -231,19 +236,19 @@ actual class IoBuffer private constructor(
     }
 
     @Deprecated("Binary compatibility", level = DeprecationLevel.HIDDEN)
-    final override fun readShort() = readShort()
+    final override fun readShort() = (this as Input).readShort()
 
     @Deprecated("Binary compatibility", level = DeprecationLevel.HIDDEN)
-    final override fun readInt() = readInt()
+    final override fun readInt() = (this as Input).readInt()
 
     @Deprecated("Binary compatibility", level = DeprecationLevel.HIDDEN)
-    final override fun readLong() = readLong()
+    final override fun readLong() = (this as Input).readLong()
 
     @Deprecated("Binary compatibility", level = DeprecationLevel.HIDDEN)
-    final override fun readFloat() = readFloat()
+    final override fun readFloat() = (this as Input).readFloat()
 
     @Deprecated("Binary compatibility", level = DeprecationLevel.HIDDEN)
-    final override fun readDouble() = readDouble()
+    final override fun readDouble() = (this as Input).readDouble()
 
     @Deprecated("Binary compatibility", level = DeprecationLevel.HIDDEN)
     final override fun readFully(dst: ByteArray, offset: Int, length: Int) {

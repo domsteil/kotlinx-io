@@ -77,6 +77,44 @@ abstract class AbstractInput(
             }
         }
 
+    final override fun prefetch(min: Int): Boolean {
+        if (min <= 0) return true
+        val headRemaining = headRemaining
+        if (headRemaining >= min || headRemaining + tailRemaining >= min) return true
+
+        return doPrefetch(min)
+    }
+
+    /**
+     * @see doFill for similar logic
+     * @see appendView for similar logic
+     */
+    private fun doPrefetch(min: Int): Boolean {
+        var tail = _head.findTail()
+        var available = headRemaining + tailRemaining
+
+        do {
+            val next = fill()
+            if (next == null) {
+                noMoreChunksAvailable = true
+                return false
+            }
+
+            val chunkSize = next.readRemaining
+            if (tail === ChunkBuffer.Empty) {
+                _head = next
+                tail = next
+            } else {
+                tail.next = next
+                tailRemaining += chunkSize
+            }
+
+            available += chunkSize
+        } while (available < min)
+
+        return true
+    }
+
     /**
      * Number of bytes available for read
      */
@@ -810,6 +848,9 @@ abstract class AbstractInput(
         }
     }
 
+    /**
+     * see [prefetch] for similar logic
+     */
     protected final fun doFill(): ChunkBuffer? {
         if (noMoreChunksAvailable) return null
         val chunk = fill()
