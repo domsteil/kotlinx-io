@@ -28,6 +28,10 @@ actual class IoBuffer internal constructor(
             }
         }
 
+    final override fun peekTo(destination: Buffer, offset: Int, min: Int, max: Int): Int {
+        return (this as Buffer).peekTo(destination, offset, min, max)
+    }
+
     final override fun tryPeek(): Int {
         return tryPeekByte()
     }

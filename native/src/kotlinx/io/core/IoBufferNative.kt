@@ -4,6 +4,8 @@ package kotlinx.io.core
 import kotlinx.cinterop.*
 import kotlinx.io.bits.*
 import kotlinx.io.core.internal.*
+import kotlinx.io.errors.*
+import kotlinx.io.errors.checkPeekTo
 import kotlinx.io.pool.*
 import platform.posix.*
 import kotlin.contracts.*
@@ -44,6 +46,10 @@ actual class IoBuffer internal constructor(
                 throw IllegalArgumentException("Only BIG_ENDIAN is supported")
             }
         }
+
+    final override fun peekTo(destination: Buffer, offset: Int, min: Int, max: Int): Int {
+        return (this as Buffer).peekTo(destination, offset, min, max)
+    }
 
     final override fun tryPeek(): Int {
         return tryPeekByte()

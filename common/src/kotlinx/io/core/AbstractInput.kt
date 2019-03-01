@@ -5,6 +5,8 @@ package kotlinx.io.core
 import kotlinx.io.bits.*
 import kotlinx.io.core.internal.*
 import kotlinx.io.core.internal.require
+import kotlinx.io.errors.*
+import kotlinx.io.errors.checkPeekTo
 import kotlinx.io.pool.*
 import kotlin.jvm.*
 
@@ -86,6 +88,8 @@ abstract class AbstractInput(
     }
 
     final override fun peekTo(destination: Buffer, offset: Int, min: Int, max: Int): Int {
+        checkPeekTo(destination, offset, min, max)
+
         if (!prefetch(min + offset)) {
             prematureEndOfStream(min + offset)
         }

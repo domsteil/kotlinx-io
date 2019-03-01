@@ -32,11 +32,20 @@ expect interface Input : Closeable {
 
     /**
      * Copy at least [min] but up to [max] bytes to the specified [destination] buffer from this input
-     * skipping [offset] bytes.
+     * skipping [offset] bytes. If there are not enough bytes available to provide [min] bytes then
+     * it fails with an exception.
      * It is safe to specify `max > destination.writeRemaining` but
      * `min` shouldn't be bigger than the [destination] free space.
+     * This function could trigger the underlying source reading that may lead to blocking I/O.
+     * It is safe to specify too big [offset] but only if `min = 0`, fails otherwise.
+     * This function usually copy more bytes than [min] (unless `max = min`).
      *
+     * @param destination to write bytes
+     * @param offset to skip input
+     * @param min bytes to be copied, shouldn't be greater than the buffer free space. Could be `0`.
+     * @param max bytes to be copied even if there are more bytes buffered, could be [Int.MAX_VALUE].
      * @return number of bytes copied to the [destination] possibly `0`
+     * @throws Throwable when not enough bytes available to provide
      */
     fun peekTo(destination: Buffer, offset: Int = 0, min: Int = 1, max: Int = Int.MAX_VALUE): Int
 
