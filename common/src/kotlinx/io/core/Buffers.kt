@@ -76,6 +76,7 @@ internal inline fun ChunkBuffer.forEachChunk(block: (ChunkBuffer) -> Unit) {
 /**
  * Copy every element of the chain starting from this and setup next links.
  */
+@PublishedApi
 internal fun ChunkBuffer.copyAll(): ChunkBuffer {
     val copied = duplicate()
     val next = this.next ?: return copied

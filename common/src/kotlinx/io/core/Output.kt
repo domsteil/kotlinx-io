@@ -52,6 +52,7 @@ expect interface Output : Appendable, Closeable {
     @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     fun writeFully(src: DoubleArray, offset: Int, length: Int)
 
+    @Suppress("DEPRECATION")
     @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     fun writeFully(src: IoBuffer, length: Int)
 
@@ -113,7 +114,7 @@ fun Output.writeFully(src: DoubleArray, offset: Int = 0, length: Int = src.size 
     }
 }
 
-@Suppress("EXTENSION_SHADOWED_BY_MEMBER")
+@Suppress("EXTENSION_SHADOWED_BY_MEMBER", "DEPRECATION")
 @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
 fun Output.writeFully(src: IoBuffer, length: Int = src.readRemaining) {
     writeFully(src as Buffer, length)
@@ -127,7 +128,7 @@ fun Output.writeFully(src: Buffer, length: Int = src.readRemaining) {
 
 @Suppress("EXTENSION_SHADOWED_BY_MEMBER")
 fun Output.fill(times: Long, value: Byte = 0) {
-    if (this is AbstractOutput2) {
+    if (this is AbstractOutput) {
         var written = 0L
         writeWhile { buffer ->
             val partTimes = minOf(buffer.writeRemaining.toLong(), times - written).toInt()
