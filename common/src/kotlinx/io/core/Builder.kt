@@ -2,6 +2,7 @@ package kotlinx.io.core
 
 import kotlinx.io.bits.*
 import kotlinx.io.core.internal.*
+import kotlinx.io.errors.*
 import kotlinx.io.pool.*
 
 expect val PACKET_MAX_COPY_SIZE: Int
@@ -40,7 +41,7 @@ expect fun BytePacketBuilder(headerSizeHint: Int = 0): BytePacketBuilder
  * ```
  */
 class BytePacketBuilder(private var headerSizeHint: Int, pool: ObjectPool<ChunkBuffer>) :
-    @Suppress("DEPRECATION") BytePacketBuilderPlatformBase(pool) {
+    @Suppress("DEPRECATION_ERROR") BytePacketBuilderPlatformBase(pool) {
     init {
         require(headerSizeHint >= 0) { "shouldn't be negative: headerSizeHint = $headerSizeHint" }
     }
@@ -249,41 +250,36 @@ class BytePacketBuilder(private var headerSizeHint: Int, pool: ObjectPool<ChunkB
         this.tail = foreignStolen.findTail()
         _size = head.remainingAll().toInt()
     }
-
-    override fun last(buffer: ChunkBuffer) {
-        if (head === ChunkBuffer.Empty) {
-            if (buffer.isEmpty()) { // headerSize is just a hint so we shouldn't force to reserve space
-                buffer.reserveStartGap(headerSizeHint) // it will always fail for non-empty buffer
-            }
-            tail = buffer
-            head = buffer
-            _size = buffer.remainingAll().toInt()
-        } else {
-            tail!!.next = buffer
-            tail = buffer
-            _size = -1
-        }
-    }
 }
 
 @DangerousInternalIoApi
-@Deprecated("Will be removed in future releases.")
-@Suppress("DEPRECATION")
-expect abstract class BytePacketBuilderPlatformBase
-internal constructor(pool: ObjectPool<ChunkBuffer>) : BytePacketBuilderBase
+@Deprecated("Will be removed in future releases.", level = DeprecationLevel.ERROR)
+@Suppress("DEPRECATION_ERROR")
+abstract class BytePacketBuilderPlatformBase
+internal constructor(pool: ObjectPool<ChunkBuffer>) : BytePacketBuilderBase(pool)
+
+@DangerousInternalIoApi
+@Deprecated("Will be removed in future releases", level = DeprecationLevel.ERROR)
+@Suppress("DEPRECATION_ERROR")
+abstract class BytePacketBuilderBase
+internal constructor(pool: ObjectPool<ChunkBuffer>) : AbstractOutput(pool)
 
 /**
- * This is the default [Output] implementation
+ * The default [Output] implementation.
+ * @see flush
+ * @see closeDestination
  */
 @ExperimentalIoApi
-abstract class AbstractOutput(pool: ObjectPool<ChunkBuffer> = ChunkBuffer.Pool) :
-    @Suppress("DEPRECATION") BytePacketBuilderPlatformBase(pool) {
-    @Deprecated("Will be removed. Override flush(buffer) properly.")
-    protected var currentTail: ChunkBuffer
-        get() = this.tail ?: ChunkBuffer.Empty
-        set(newValue) {
-            this.tail = newValue
-        }
+abstract class AbstractOutput
+internal constructor(
+    private val headerSizeHint: Int,
+    protected val pool: ObjectPool<ChunkBuffer>
+) : Appendable, Output {
+    constructor(pool: ObjectPool<ChunkBuffer> = ChunkBuffer.Pool) : this(0, pool)
+
+    @Suppress("UNCHECKED_CAST", "DEPRECATION")
+    @Deprecated("Use ChunkBuffer's pool instead", level = DeprecationLevel.ERROR)
+    constructor(pool: ObjectPool<IoBuffer>) : this(pool as ObjectPool<ChunkBuffer>)
 
     /**
      * An implementation should write the whole [buffer] to the destination. It should never capture the [buffer] instance
@@ -296,61 +292,51 @@ abstract class AbstractOutput(pool: ObjectPool<ChunkBuffer> = ChunkBuffer.Pool) 
      */
     protected abstract fun closeDestination()
 
-    /**
-     * Invoked when a new [buffer] is appended for writing (usually it's empty)
-     */
-    final override fun last(buffer: ChunkBuffer) {
-        flushChain(buffer)
-    }
+    private var head: ChunkBuffer? = null
+    private var _tail: ChunkBuffer? = null
 
-    final override fun release() {
-        val tail = tail
-        this.tail = null
-        tail?.release(pool)
-        closeDestination()
-    }
-
-    final override fun flush() {
-        flushChain(null)
-    }
-
-    private fun flushChain(newTail: ChunkBuffer?) {
-        val oldTail = tail
-        tail = newTail
-
-        if (oldTail == null) return
-
-        try {
-            oldTail.forEachChunk { chunk ->
-                flush(chunk)
+    @PublishedApi
+    internal var tail: ChunkBuffer
+        get() {
+            val _tail = _tail
+            if (_tail != null) {
+                if (_tail.commitWrittenUntilIndex(tailPosition)) {
+                    return _tail
+                }
             }
-        } finally {
-            oldTail.releaseAll(pool)
+            return appendNewBuffer()
         }
-    }
+        @Suppress("")
+        set(_) {
+            TODO_ERROR()
+        }
+
+    @Deprecated("Will be removed. Override flush(buffer) properly.", level = DeprecationLevel.ERROR)
+    protected var currentTail: ChunkBuffer
+        get() = this.tail
+        set(newValue) {
+            last(newValue)
+        }
+
+    internal var tailMemory: Memory = Memory.Empty
+    internal var tailPosition = 0
+    internal var tailEndExclusive = 0
+        private set
+
+    private var tailInitialPosition = 0
+    private var chainedSize: Int = 0
+
+    internal inline val tailRemaining: Int get() = tailEndExclusive - tailPosition
+    internal inline val tailWritten: Int get() = tailPosition - tailInitialPosition
 
     /**
-     * Should flush and close the destination
+     * Number of bytes currently buffered (pending).
      */
-    final override fun close() {
-        try {
-            flush()
-        } finally {
-            release()
+    protected final var _size: Int
+        get() = chainedSize + (tailPosition - tailInitialPosition)
+        @Deprecated("There is no need to update/reset this value anymore.")
+        set(_) {
         }
-    }
-}
-
-@DangerousInternalIoApi
-@Deprecated("Will be removed in future releases")
-@Suppress("DEPRECATION")
-abstract class BytePacketBuilderBase internal constructor(protected val pool: ObjectPool<ChunkBuffer>) : Appendable,
-    Output {
-
-    /**
-     * Number of bytes currently buffered or -1 if not known (need to be recomputed)
-     */
-    protected var _size: Int = 0
 
     /**
      * Byte order (Endianness) to be used by future write functions calls on this builder instance. Doesn't affect any
@@ -373,126 +359,126 @@ abstract class BytePacketBuilderBase internal constructor(protected val pool: Ob
             }
         }
 
-    @PublishedApi
-    internal var tail: ChunkBuffer? = null
+    final override fun flush() {
+        flushChain(null)
+    }
 
-    final override fun writeFully(src: ByteArray, offset: Int, length: Int) {
-        if (length == 0) return
+    private fun flushChain(newTail: ChunkBuffer?) {
+        val oldTail = tail
+        tail = newTail
 
-        var copied = 0
+        if (oldTail == null) return
 
-        writeLoop(1, { copied < length }) { buffer, bufferRemaining ->
-            val size = minOf(bufferRemaining, length - copied)
-            buffer.writeFully(src, offset + copied, size)
-            copied += size
-            size
+        try {
+            oldTail.forEachChunk { chunk ->
+                flush(chunk)
+            }
+        } finally {
+            oldTail.releaseAll(pool)
         }
     }
 
-    final override fun writeLong(v: Long) {
-        write(8) { it.writeLong(v); 8 }
-    }
+    internal final fun last(buffer: ChunkBuffer) {
+        check(buffer.next == null) { "It should be a single buffer chunk." }
 
-    final override fun writeInt(v: Int) {
-        write(4) { it.writeInt(v); 4 }
-    }
+        val _tail = _tail
+        if (_tail == null) {
+            head = buffer
+            chainedSize = 0
+        } else {
+            _tail.next = buffer
+            val tailPosition = tailPosition
+            _tail.commitWrittenUntilIndex(tailPosition)
+            chainedSize += tailPosition - tailInitialPosition
+        }
 
-    final override fun writeShort(v: Short) {
-        write(2) { it.writeShort(v); 2 }
+        this._tail = buffer
+        tailMemory = buffer.memory
+        tailPosition = buffer.writePosition
+        tailInitialPosition = buffer.readPosition
+        tailEndExclusive = buffer.limit
     }
 
     final override fun writeByte(v: Byte) {
-        write(1) { it.writeByte(v); 1 }
+        val index = tailPosition
+        if (index < tailEndExclusive) {
+            tailPosition = index + 1
+            tailMemory[index] = v
+            return
+        }
+
+        return writeByteFallback(v)
     }
 
+    private fun writeByteFallback(v: Byte) {
+        appendNewBuffer().writeByte(1)
+        tailPosition++
+    }
+
+    /**
+     * Should flush and close the destination
+     */
+    final override fun close() {
+        try {
+            flush()
+        } finally {
+            closeDestination() // TODO check what should be done here
+        }
+    }
+
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
+    final override fun writeFully(src: ByteArray, offset: Int, length: Int) {
+        (this as Output).writeFully(src, offset, length)
+    }
+
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
+    final override fun writeLong(v: Long) {
+        (this as Output).writeLong(v)
+    }
+
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
+    final override fun writeInt(v: Int) {
+        (this as Output).writeInt(v)
+    }
+
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
+    final override fun writeShort(v: Short) {
+        (this as Output).writeShort(v)
+    }
+
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     final override fun writeDouble(v: Double) {
-        write(8) { it.writeDouble(v); 8 }
+        (this as Output).writeDouble(v)
     }
 
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     final override fun writeFloat(v: Float) {
-        write(4) { it.writeFloat(v); 4 }
+        (this as Output).writeFloat(v)
     }
 
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     override fun writeFully(src: ShortArray, offset: Int, length: Int) {
-        require(length >= 0) { "length shouldn't be negative: $length" }
-        require(offset + length < src.lastIndex) { "offset ($offset) + length ($length) >= src.lastIndex (${src.lastIndex})" }
-
-        if (length == 0) return
-
-        var start = offset
-        var remaining = length
-
-        writeLoop(2, { remaining > 0 }) { buffer, chunkRemaining ->
-            val qty = minOf(chunkRemaining shr 1, remaining)
-            buffer.writeFully(src, start, qty)
-            start += qty
-            remaining -= qty
-            qty * 2
-        }
+        (this as Output).writeFully(src, offset, length)
     }
 
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     override fun writeFully(src: IntArray, offset: Int, length: Int) {
-        require(length >= 0) { "length shouldn't be negative: $length" }
-        require(offset + length < src.lastIndex) { "offset ($offset) + length ($length) >= src.lastIndex (${src.lastIndex})" }
-
-        var start = offset
-        var remaining = length
-
-        writeLoop(4, { remaining > 0 }) { buffer, chunkRemaining ->
-            val qty = minOf(chunkRemaining shr 2, remaining)
-            buffer.writeFully(src, start, qty)
-            start += qty
-            remaining -= qty
-            qty * 4
-        }
+        (this as Output).writeFully(src, offset, length)
     }
 
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     override fun writeFully(src: LongArray, offset: Int, length: Int) {
-        require(length >= 0) { "length shouldn't be negative: $length" }
-        require(offset + length < src.lastIndex) { "offset ($offset) + length ($length) >= src.lastIndex (${src.lastIndex})" }
-
-        var start = offset
-        var remaining = length
-
-        writeLoop(8, { remaining > 0 }) { buffer, chunkRemaining ->
-            val qty = minOf(chunkRemaining shr 3, remaining)
-            buffer.writeFully(src, start, qty)
-            start += qty
-            remaining -= qty
-            qty * 8
-        }
+        (this as Output).writeFully(src, offset, length)
     }
 
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     override fun writeFully(src: FloatArray, offset: Int, length: Int) {
-        require(length >= 0) { "length shouldn't be negative: $length" }
-        require(offset + length < src.lastIndex) { "offset ($offset) + length ($length) >= src.lastIndex (${src.lastIndex})" }
-
-        var start = offset
-        var remaining = length
-
-        writeLoop(4, { remaining > 0 }) { buffer, chunkRemaining ->
-            val qty = minOf(chunkRemaining shr 2, remaining)
-            buffer.writeFully(src, start, qty)
-            start += qty
-            remaining -= qty
-            qty * 4
-        }
+        (this as Output).writeFully(src, offset, length)
     }
 
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     override fun writeFully(src: DoubleArray, offset: Int, length: Int) {
-        require(length >= 0) { "length shouldn't be negative: $length" }
-        require(offset + length < src.lastIndex) { "offset ($offset) + length ($length) >= src.lastIndex (${src.lastIndex})" }
-
-        var start = offset
-        var remaining = length
-
-        writeLoop(8, { remaining > 0 }) { buffer, chunkRemaining ->
-            val qty = minOf(chunkRemaining shr 3, remaining)
-            buffer.writeFully(src, start, qty)
-            start += qty
-            remaining -= qty
-            qty * 8
-        }
+        (this as Output).writeFully(src, offset, length)
     }
 
     @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
@@ -501,37 +487,12 @@ abstract class BytePacketBuilderBase internal constructor(protected val pool: Ob
     }
 
     fun writeFully(src: Buffer, length: Int) {
-        require(length >= 0) { "length shouldn't be negative: $length" }
-        require(length <= src.readRemaining) { "Not enough bytes available in src buffer to read $length bytes" }
-
-        val totalSize = minOf(src.readRemaining, length)
-        if (totalSize == 0) return
-        var remaining = totalSize
-
-        var tail = tail?.takeIf { it.canWrite() } ?: appendNewBuffer()
-
-        do {
-            val size = minOf(tail.writeRemaining, remaining)
-            tail.writeFully(src, size)
-            remaining -= size
-
-            if (remaining == 0) break
-            tail = appendNewBuffer()
-        } while (true)
-
-        addSize(totalSize)
+        (this as Output).writeFully(src, length)
     }
 
+    @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     override fun fill(n: Long, v: Byte) {
-        require(n >= 0L) { "n shouldn't be negative: $n" }
-
-        var rem = n
-        writeLoop(1, { rem > 0L }) { buffer, chunkRemaining ->
-            val size = minOf(chunkRemaining.toLong(), n).toInt()
-            buffer.fill(size.toLong(), v)
-            rem -= size
-            size
-        }
+        (this as Output).fill(n, v)
     }
 
     /**
@@ -681,11 +642,13 @@ abstract class BytePacketBuilderBase internal constructor(protected val pool: Ob
     /**
      * Release any resources that the builder holds. Builder shouldn't be used after release
      */
-    abstract fun release()
+    final fun release() {
+        close()
+    }
 
     @DangerousInternalIoApi
     fun prepareWriteHead(n: Int): ChunkBuffer {
-        return tail?.takeIf { it.writeRemaining >= n } ?: appendNewBuffer()
+        return tail.takeIf { it.writeRemaining >= n } ?: appendNewBuffer()
     }
 
     @DangerousInternalIoApi
@@ -706,36 +669,17 @@ abstract class BytePacketBuilderBase internal constructor(protected val pool: Ob
         addSize(block(buffer))
     }
 
-    private inline fun writeLoop(size: Int, predicate: () -> Boolean, block: (Buffer, Int) -> Int) {
-        if (!predicate()) return
-        var written = 0
-        var buffer = tail ?: ChunkBuffer.Empty
-        var rem = buffer.writeRemaining
-
-        do {
-            if (rem < size) {
-                buffer = appendNewBuffer()
-                rem = buffer.writeRemaining
-            }
-
-            val result = block(buffer, rem)
-            written += result
-            rem -= result
-        } while (predicate())
-
-        addSize(written)
-    }
-
     @PublishedApi
+    @Deprecated("There is no need to do that anymore.")
     internal fun addSize(n: Int) {
-        val size = _size
-        if (size != -1) {
-            _size = size + n
-        }
+        check(n >= 0) { "It should be non-negative size increment: $n" }
+        check(n <= tailRemaining) { "Unable to mark more bytes than available: $n > $tailRemaining" }
+
+        // For binary compatibility we need to update pointers
+        tailPosition += n
     }
 
-    internal abstract fun last(buffer: ChunkBuffer)
-
+    @Suppress("DEPRECATION")
     @Deprecated("Binary compatibility.", level = DeprecationLevel.HIDDEN)
     internal open fun last(buffer: IoBuffer) {
         last(buffer as ChunkBuffer)
