@@ -99,7 +99,7 @@ actual fun CharsetDecoder.decode(input: Input, dst: Appendable, max: Int): Int {
 
 actual fun CharsetDecoder.decodeExactBytes(input: Input, inputLength: Int): String {
     if (inputLength == 0) return ""
-    if (input is ByteReadPacketBase && input.headRemaining >= inputLength) {
+    if (input is AbstractInput && input.headRemaining >= inputLength) {
         val decoder = TextDecoderFatal(charset._name, true)
 
         val head = input.head

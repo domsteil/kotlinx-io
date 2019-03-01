@@ -41,6 +41,8 @@ expect interface Input : Closeable {
      */
     override fun close()
 
+    // TODO add prefetch(Int): Boolean
+
     /**
      * Copy available bytes to the specified [buffer] but keep them available.
      * The underlying implementation could trigger

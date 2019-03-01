@@ -80,7 +80,7 @@ actual fun CharsetEncoder.encodeUTF8(input: ByteReadPacket, dst: Output) {
                     } else false
                 }
 
-                input.updateHeadRemaining(chunk.readRemaining)
+                input.headPosition = chunk.readPosition
 
                 cb.flip()
 
@@ -196,7 +196,7 @@ actual fun CharsetDecoder.decode(input: Input, dst: Appendable, max: Int): Int {
 
 actual fun CharsetDecoder.decodeExactBytes(input: Input, inputLength: Int): String {
     if (inputLength == 0) return ""
-    if (input is ByteReadPacketBase && input.headRemaining >= inputLength) {
+    if (input is AbstractInput && input.headRemaining >= inputLength) {
         // if we have a packet or a buffered input with the first head containing enough bytes
         // then we can try fast-path
         if (input.headMemory.buffer.hasArray()) {
@@ -222,7 +222,7 @@ actual fun CharsetDecoder.decodeExactBytes(input: Input, inputLength: Int): Stri
     return decodeImplSlow(input, inputLength)
 }
 
-private fun CharsetDecoder.decodeImplByteBuffer(input: ByteReadPacketBase, inputLength: Int): String {
+private fun CharsetDecoder.decodeImplByteBuffer(input: AbstractInput, inputLength: Int): String {
     val cb = CharBuffer.allocate(inputLength)
     val bb = input.headMemory.slice(input.head.readPosition, inputLength).buffer
 
